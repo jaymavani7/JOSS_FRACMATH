@@ -26,11 +26,14 @@
 #
 #  OUTPUTS  ->  abaqus_results/
 #    abaqus_load_cmod.csv
-#    abaqus_load_cmod.png            (MATLAB-style Load-CMOD)
-#    abaqus_damage_peak.png          (MATLAB-style crack contour)
-#    abaqus_damage_postpeak.png
+#    abaqus_load_cmod.csv            (Load-CMOD raw data only)
 #    abaqus_summary.txt
-#    damage_peak.dat / damage_postpeak.dat  (raw geometry, for re-plot)
+#    damage_peak.dat / damage_postpeak.dat  (raw geometry only)
+#
+#  NOTE:
+#    Plotting is intentionally disabled. This avoids Abaqus/Python
+#    exiting or crashing after the simulation when matplotlib/system
+#    Python plotting is triggered.
 # =====================================================================
 from __future__ import print_function
 
@@ -39,7 +42,6 @@ import sys
 import csv
 import math
 import time
-import subprocess
 
 # =====================================================================
 #  CONFIG  — must match MATLAB solver_main_3pb exactly
@@ -784,251 +786,8 @@ def dump_damage_geometry(odb, frame, out_dat):
 
 
 # =====================================================================
-#  PHASE 7 — MATLAB-EXACT plots
-# =====================================================================
-def crack_cmap_rgb(v):
-    # EXACT MATLAB crack_cmap stops
-    stops = [
-        (0.00, (0.84, 0.88, 0.95)),
-        (0.10, (0.18, 0.42, 0.86)),
-        (0.30, (0.05, 0.72, 0.88)),
-        (0.50, (0.18, 0.80, 0.32)),
-        (0.70, (0.96, 0.90, 0.08)),
-        (0.85, (0.98, 0.44, 0.04)),
-        (1.00, (0.82, 0.04, 0.04)),
-    ]
-    v = max(0.0, min(1.0, float(v)))
-    for i in range(len(stops) - 1):
-        if stops[i][0] <= v <= stops[i + 1][0]:
-            t = (v - stops[i][0]) / max(stops[i + 1][0] - stops[i][0], 1e-12)
-            c0 = stops[i][1]; c1 = stops[i + 1][1]
-            return tuple(c0[j] * (1 - t) + c1[j] * t for j in range(3))
-    return stops[-1][1]
-
-
-def plot_load_cmod_matlab(csv_path, png_path):
-    xs = []; ys = []
-    with open(csv_path) as f:
-        r = csv.reader(f); next(r, None)
-        for row in r:
-            if len(row) >= 3:
-                try:
-                    xs.append(float(row[1])); ys.append(float(row[2]) / 1000.0)
-                except Exception:
-                    pass
-    if len(xs) < 2:
-        print('  WARNING: too few points to plot Load-CMOD')
-        return
-    try:
-        import matplotlib
-        matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
-        from matplotlib.colors import LinearSegmentedColormap
-    except Exception as e:
-        print('  matplotlib unavailable in Abaqus python: ' + str(e))
-        print('  -> run plot_matlab_style.py separately with regular python')
-        return
-
-    pk = max(range(len(ys)), key=lambda i: ys[i])
-    pk_load = ys[pk]; pk_cmod = xs[pk]
-
-    fig = plt.figure(figsize=(5.0, 3.9), dpi=300)
-    ax = fig.add_axes([0.14, 0.14, 0.82, 0.78])
-    ax.grid(True, linestyle=':', color=(0.80, 0.80, 0.80), linewidth=0.7)
-    ax.set_axisbelow(True)
-
-    # MATLAB shaded fill under curve (alpha 0.10)
-    ax.fill_between(xs, ys, 0, color=(0.08, 0.30, 0.72), alpha=0.10,
-                    linewidth=0)
-    # main curve
-    ax.plot(xs, ys, '-', color=(0.08, 0.30, 0.72), linewidth=2.0)
-    # pentagram peak marker (MATLAB gold star)
-    ax.plot([pk_cmod], [pk_load], marker='*', markersize=15,
-            markerfacecolor=(0.98, 0.82, 0.0),
-            markeredgecolor=(0.40, 0.28, 0.0), markeredgewidth=1.0,
-            linestyle='None')
-    # peak label box
-    ax.annotate('$P_{\\rm peak}=%.2f$ kN\nCMOD$=%.4f$ mm' % (pk_load, pk_cmod),
-                xy=(pk_cmod, pk_load),
-                xytext=(pk_cmod + 0.012, pk_load * 1.02),
-                fontsize=8.5, color=(0.30, 0.20, 0.0),
-                bbox=dict(boxstyle='round,pad=0.3', fc='white',
-                          ec=(0.60, 0.50, 0.20), lw=0.5))
-
-    ax.set_xlabel('CMOD [mm]', fontsize=10)
-    ax.set_ylabel('Load [kN]', fontsize=10)
-    ax.set_title('Load--CMOD response', fontsize=10, fontweight='bold')
-    ax.set_xlim(0.0, 0.35)                    # MATLAB xlim
-    ax.set_ylim(0.0, pk_load * 1.28)          # MATLAB ylim
-    ax.tick_params(labelsize=9)
-    for s in ax.spines.values():
-        s.set_linewidth(0.7)
-
-    fig.savefig(png_path)
-    plt.close(fig)
-    print('  saved %s' % png_path)
-
-
-def plot_damage_matlab(dat_path, png_path, title_label):
-    # read geometry
-    nodes = {}; disp = {}; elems = []
-    with open(dat_path) as f:
-        for line in f:
-            p = line.split()
-            if not p: continue
-            if p[0] == 'N':
-                lb = int(p[1])
-                nodes[lb] = (float(p[2]), float(p[3]))
-                disp[lb] = (float(p[4]), float(p[5]))
-            elif p[0] == 'E':
-                elems.append((int(p[1]), int(p[2]), int(p[3]),
-                              int(p[4]), float(p[5])))
-    if not nodes or not elems:
-        print('  WARNING: empty damage geometry %s' % dat_path)
-        return
-    try:
-        import matplotlib
-        matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
-        from matplotlib.collections import PolyCollection
-    except Exception as e:
-        print('  matplotlib unavailable: ' + str(e))
-        return
-
-    # deformed coords, MATLAB scale logic: min(1, max(30, 2/umax))
-    umax = 0.0
-    for lb in nodes:
-        ux, uy = disp[lb]
-        umax = max(umax, abs(ux), abs(uy))
-    scale = min(1.0, max(30.0, 2.0 / max(umax, 1e-12)))
-
-    defxy = {}
-    for lb in nodes:
-        x, y = nodes[lb]; ux, uy = disp[lb]
-        defxy[lb] = (x + scale * ux, y + scale * uy)
-
-    xs = [p[0] for p in defxy.values()]; ys = [p[1] for p in defxy.values()]
-    xmin, xmax = min(xs), max(xs); ymin, ymax = min(ys), max(ys)
-
-    fig = plt.figure(figsize=(9.0, 4.0), dpi=300)
-    ax = fig.add_axes([0.10, 0.15, 0.75, 0.75])
-
-    # layer 1: full mesh light grey (MATLAB [0.92 0.92 0.93])
-    polys_all = []
-    for eid, n1, n2, n3, om in elems:
-        if n1 in defxy and n2 in defxy and n3 in defxy:
-            polys_all.append([defxy[n1], defxy[n2], defxy[n3]])
-    pc_all = PolyCollection(polys_all, facecolors=(0.92, 0.92, 0.93),
-                            edgecolors=(0.75, 0.77, 0.80), linewidths=0.15)
-    ax.add_collection(pc_all)
-
-    # layer 2: crack zone omega>0.01, flat colour (MATLAB THRESH=0.01)
-    polys_crack = []; cols_crack = []
-    for eid, n1, n2, n3, om in elems:
-        if om > 0.01 and n1 in defxy and n2 in defxy and n3 in defxy:
-            polys_crack.append([defxy[n1], defxy[n2], defxy[n3]])
-            cols_crack.append(crack_cmap_rgb(om))
-    if polys_crack:
-        pc_cr = PolyCollection(polys_crack, facecolors=cols_crack,
-                               edgecolors='none')
-        ax.add_collection(pc_cr)
-
-    # colorbar with MATLAB crack colormap
-    from matplotlib.colors import LinearSegmentedColormap
-    import numpy as np
-    grid = np.linspace(0, 1, 256)
-    cmap = LinearSegmentedColormap.from_list(
-        'crack', [crack_cmap_rgb(t) for t in grid], N=256)
-    sm = plt.cm.ScalarMappable(cmap=cmap,
-                               norm=plt.Normalize(vmin=0, vmax=1))
-    sm.set_array([])
-    cb = fig.colorbar(sm, ax=ax, fraction=0.046, pad=0.04)
-    cb.set_label(r'$\omega$  (damage)', fontsize=10)
-
-    ax.set_xlim(xmin - 5, xmax + 5)
-    ax.set_ylim(ymin - 5, ymax + 5)
-    ax.set_aspect('equal')
-    ax.set_xlabel('$x$ [mm]', fontsize=10)
-    ax.set_ylabel('$y$ [mm]', fontsize=10)
-    for s in ax.spines.values():
-        s.set_linewidth(0.8)
-
-    # label box top-left (MATLAB style)
-    ax.text(0.03, 0.94, title_label, transform=ax.transAxes,
-            fontsize=11, fontweight='bold', va='top', ha='left',
-            bbox=dict(boxstyle='round,pad=0.4', fc='white',
-                      ec=(0.2, 0.2, 0.2), lw=0.8))
-
-    fig.savefig(png_path)
-    plt.close(fig)
-    print('  saved %s' % png_path)
-
-
-def save_summary(data, path):
-    if not data:
-        return
-    ip = max(range(len(data)), key=lambda i: data[i][2])
-    with open(path, 'w') as f:
-        f.write('Abaqus 3PB MATLAB-match summary\n')
-        f.write('Curve points : %d\n' % len(data))
-        f.write('Peak load    : %.4f N\n' % data[ip][2])
-        f.write('Peak load    : %.4f kN\n' % (data[ip][2] / 1000.0))
-        f.write('CMOD @ peak  : %.6f mm\n' % data[ip][1])
-        f.write('Time @ peak  : %.6e\n' % data[ip][0])
-    print('  summary: %s' % path)
-
-
-# =====================================================================
 #  DRIVER
 # =====================================================================
-def run_external_plotter():
-    """Run plot_matlab_style.py with a real system Python that has matplotlib.
-
-    Abaqus's bundled Python cannot reliably run matplotlib, so we shell out
-    to the OS Python. Returns True if plots were produced, else False.
-    """
-    plotter = 'plot_matlab_style.py'
-    if not os.path.exists(plotter):
-        print('  %s not found in folder -> cannot auto-plot' % plotter)
-        return False
-
-    # candidate interpreters to try, in order
-    cands = ['python', 'python3', 'py']
-    # allow user override via env var
-    env_py = os.environ.get('MATCH_PLOT_PYTHON')
-    if env_py:
-        cands = [env_py] + cands
-
-    expected = os.path.join(RESULT_DIR, 'abaqus_load_cmod.png')
-
-    for py in cands:
-        try:
-            print('  trying interpreter: %s' % py)
-            # quick matplotlib availability probe
-            probe = subprocess.call(
-                [py, '-c', 'import matplotlib, numpy'],
-                stdout=open(os.devnull, 'w'),
-                stderr=open(os.devnull, 'w'))
-            if probe != 0:
-                print('    -> %s has no matplotlib/numpy, skipping' % py)
-                continue
-            # run the plotter
-            rc = subprocess.call([py, plotter])
-            if rc == 0 and os.path.exists(expected):
-                print('  plots generated by: %s %s' % (py, plotter))
-                return True
-            else:
-                print('    -> %s ran but plots not found (rc=%s)' % (py, rc))
-        except Exception as e:
-            print('    -> %s failed: %s' % (py, str(e)))
-            continue
-
-    print('  no working system Python found.')
-    print('  After this finishes, run manually in a normal terminal:')
-    print('    python plot_matlab_style.py')
-    return False
-
-
 def main():
     print('=' * 70)
     print('Gregoire 3PB — full Abaqus pipeline matching MATLAB solver')
@@ -1099,35 +858,13 @@ def main():
                          os.path.join(RESULT_DIR, 'damage_postpeak.dat'))
     odb.close()
 
-    print('\n[7/7] Plotting in MATLAB style...')
-    # Abaqus's bundled Python often cannot run matplotlib (it crashes the
-    # internal monitor). So we DO NOT plot inside Abaqus. Instead we call
-    # plot_matlab_style.py with a real system Python that has matplotlib.
-    # The data files (csv + damage .dat) are already written, so the
-    # external plotter has everything it needs.
-    ok = run_external_plotter()
-    if not ok:
-        # last resort: try matplotlib inside Abaqus (may work on some installs)
-        print('  external plotter unavailable -> trying in-Abaqus matplotlib')
-        try:
-            plot_load_cmod_matlab(
-                csv_path, os.path.join(RESULT_DIR, 'abaqus_load_cmod.png'))
-            pk_kN = data[ip][2] / 1000.0
-            plot_damage_matlab(
-                os.path.join(RESULT_DIR, 'damage_peak.dat'),
-                os.path.join(RESULT_DIR, 'abaqus_damage_peak.png'),
-                'Peak load: %.2f kN' % pk_kN)
-            plot_damage_matlab(
-                os.path.join(RESULT_DIR, 'damage_postpeak.dat'),
-                os.path.join(RESULT_DIR, 'abaqus_damage_postpeak.png'),
-                'Post-peak')
-        except Exception as e:
-            print('  in-Abaqus plotting failed: %s' % str(e))
-            print('  Run manually:  python plot_matlab_style.py')
+    print('\n[7/7] Plotting skipped.')
+    print('  Load-CMOD PNG plotting is disabled to prevent Abaqus/Python exit/crash.')
+    print('  The simulation, Load-CMOD CSV, summary, and raw damage geometry are saved.')
 
     print('\nDONE. Results in: %s' % os.path.abspath(RESULT_DIR))
-    print('  abaqus_load_cmod.csv / .png')
-    print('  abaqus_damage_peak.png / abaqus_damage_postpeak.png')
+    print('  abaqus_load_cmod.csv')
+    print('  damage_peak.dat / damage_postpeak.dat')
     print('  abaqus_summary.txt')
 
 
