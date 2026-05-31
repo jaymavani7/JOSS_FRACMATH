@@ -1,0 +1,26 @@
+﻿cff-version: 1.2.0
+type: software
+message: "If you use this repository, please cite the associated FRACMAT paper and this software archive."
+title: "FRACMAT: A vectorized MATLAB framework for continuum damage mechanics with crack band regularization"
+authors:
+  - family-names: Mavani
+    given-names: Jaykumar
+  - family-names: Pathirage
+    given-names: Madura
+repository-code: "https://github.com/jaymavani7/JOSS_FRACMATH"
+date-released: "2026-05-31"
+version: "1.0.0"
+license: MIT
+keywords:
+  - fracture mechanics
+  - continuum damage mechanics
+  - crack band regularization
+  - finite element method
+  - MATLAB
+  - Abaqus
+  - UMAT
+abstract: >-
+  FRACMAT is a MATLAB framework for finite element simulation of fracture in
+  quasibrittle materials using scalar isotropic continuum damage mechanics,
+  modified von Mises equivalent strain, exponential softening, and
+  direction-dependent Oliver crack-band regularization.

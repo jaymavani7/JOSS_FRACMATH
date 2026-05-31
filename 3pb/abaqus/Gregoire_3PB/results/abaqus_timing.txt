@@ -1,0 +1,6 @@
+Gregoire 3PB job: C:\Users\jmavani\OneDrive - University of New Mexico\Desktop\JOSS\3pb_2\abaqus\Gregoire_3PB\Gregoire_3PB.odb
+Peak load:  3837.08 N
+CMOD@peak:  0.026282 mm
+Rows:       1147
+Solver wall-clock (submit->done): 408.42 s   <-- compare to MATLAB
+Abaqus WALLCLOCK (.msg/.dat):     390.00 s (Gregoire_3PB.msg)

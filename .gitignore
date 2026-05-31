@@ -1,0 +1,38 @@
+﻿# Operating system and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+
+# MATLAB temporary files
+*.asv
+*.m~
+
+# LaTeX build products
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+
+# Abaqus scratch and lock files
+*.lck
+*.simdir/
+abaqus.rpy*
+
+# Keep scientific outputs in git unless intentionally removed.
+# Large Abaqus *.odb files are tracked through Git LFS via .gitattributes.
