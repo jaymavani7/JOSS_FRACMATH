@@ -1,9 +1,9 @@
-function solver_main_3pb()
-% SOLVER_MAIN_3PB  Single-file MATLAB solver for the notched 3PB case.
+function solver_main_3pb_OLIVER_bandwidth()
+% SOLVER_MAIN_3PB_OLIVER_BANDWIDTH  Single-file MATLAB solver for the notched 3PB case.
 %
 %   Reads the .txt mesh files written by export_3pb.m (or make_mesh_3pb.py),
 %   runs the vectorized CDM solver (modified von Mises eq strain, exponential
-%   softening, crack-band regularization, modified Newton-Raphson with
+%   softening, full direction-dependent Oliver crack-band regularization, modified Newton-Raphson with
 %   secant tangent refactored once per load step), saves all plots
 %   and the timing log.
 %
@@ -65,13 +65,14 @@ fig_mesh(nodes, elems, dof, res_dir);
 % =====================================================================
 % 2. Pre-compute element data
 % =====================================================================
-[B_all, area_v, hband_v, dof_mat] = precompute_T3(nodes, elems);
+[B_all, area_v, gradN_all, dof_mat] = precompute_T3(nodes, elems);
 D_el = (p.E / (1 - p.nu^2)) * [1 p.nu 0; p.nu 1 0; 0 0 (1-p.nu)/2];
 DB   = pagemtimes(D_el, B_all);
 Ke0  = pagemtimes(permute(B_all,[2 1 3]), DB) .* ...
        reshape(area_v * p.t, 1, 1, []);
 [II, JJ] = sparse_indices(dof_mat);
-ef_e = max(p.eps0/2 + p.GF ./ (hband_v * p.ft), p.eps0 + 1e-12);
+% Full Oliver bandwidth is direction-dependent, so it is computed inside
+% damage_update from the current principal strain direction of each element.
 
 % =====================================================================
 % 3. Open the LIVE figure & Setup Video Writer
@@ -94,6 +95,7 @@ kappa = zeros(nE, 1);
 u     = zeros(2*nN, 1);
 
 CMOD = []; F = []; Disp = [];
+Hmean = []; Hmin = []; Hmax = [];
 t_asm = 0; t_dam = 0; t_solve = 0;
 
 peak_load_so_far = 0;
@@ -129,7 +131,7 @@ for step = 1:p.num_steps
 
     % --- damage update -------------------------------------------------
     tic;
-    [omega, kappa] = damage_update(u, B_all, dof_mat, kappa, omega, ef_e, p);
+    [omega, kappa, h_oliver] = damage_update(u, B_all, gradN_all, dof_mat, kappa, omega, p);
     t_dam = t_dam + toc;
 
     F_now = -sum(r(dof.prescribed));
@@ -139,6 +141,9 @@ for step = 1:p.num_steps
     CMOD(end+1) = C_now;   %#ok<AGROW>
     F(end+1)    = F_now;   %#ok<AGROW>
     Disp(end+1) = -u_tgt;  %#ok<AGROW>
+    Hmean(end+1) = mean(h_oliver); %#ok<AGROW>
+    Hmin(end+1)  = min(h_oliver);  %#ok<AGROW>
+    Hmax(end+1)  = max(h_oliver);  %#ok<AGROW>
 
     % --- snapshots for final figures -----------------------------------
     if F_now > peak_load_so_far
@@ -205,6 +210,17 @@ end
 fclose(fid);
 fprintf('  wrote %s\n', csv_path);
 
+% Save Oliver bandwidth history. These values change because the crack
+% normal direction changes with the strain state.
+hcsv_path = fullfile(res_dir, 'matlab_oliver_bandwidth_history.csv');
+fid = fopen(hcsv_path, 'w');
+fprintf(fid, '# step, mean_h_oliver[mm], min_h_oliver[mm], max_h_oliver[mm]\n');
+for i = 1:numel(Hmean)
+    fprintf(fid, '%d, %.6e, %.6e, %.6e\n', i, Hmean(i), Hmin(i), Hmax(i));
+end
+fclose(fid);
+fprintf('  wrote %s\n', hcsv_path);
+
 t_path = fullfile(res_dir, 'matlab_timing.txt');
 fid = fopen(t_path, 'w');
 fprintf(fid, 'MATLAB 3PB solver\n');
@@ -217,6 +233,11 @@ fprintf(fid, '  solve:      %.2f s  (%.1f%%)\n', t_solve, 100*t_solve/t_total);
 fprintf(fid, 'Peak RAM:     %.1f MB\n',   peak_ram_MB);
 fprintf(fid, 'Mesh:         %d CPS3, %d DOFs\n', nE, 2*nN);
 fprintf(fid, 'Load steps:   %d\n',        numel(F));
+if ~isempty(Hmean)
+    fprintf(fid, 'Oliver h mean final: %.6e mm\n', Hmean(end));
+    fprintf(fid, 'Oliver h min final:  %.6e mm\n', Hmin(end));
+    fprintf(fid, 'Oliver h max final:  %.6e mm\n', Hmax(end));
+end
 fclose(fid);
 fprintf('  wrote %s\n', t_path);
 
@@ -378,24 +399,38 @@ end
 % =====================================================================
 %                    ELEMENT PRE-COMPUTATION
 % =====================================================================
-function [B_all, area_v, hband_v, dof_mat] = precompute_T3(nodes, elems)
+function [B_all, area_v, gradN_all, dof_mat] = precompute_T3(nodes, elems)
     x1 = nodes(elems(:,1),1);  y1 = nodes(elems(:,1),2);
     x2 = nodes(elems(:,2),1);  y2 = nodes(elems(:,2),2);
     x3 = nodes(elems(:,3),1);  y3 = nodes(elems(:,3),2);
 
-    area_v = 0.5*abs((x2-x1).*(y3-y1) - (x3-x1).*(y2-y1));
+    area_signed = 0.5*((x2-x1).*(y3-y1) - (x3-x1).*(y2-y1));
+    area_v = abs(area_signed);
+    if any(area_v <= 1e-14)
+        bad = find(area_v <= 1e-14, 1, 'first');
+        error('Zero or near-zero CPS3 area at element %d.', bad);
+    end
+
+    % T3 shape-function derivatives:
+    % grad(Na) = [dNa/dx, dNa/dy]. These are constant inside each T3 element.
     b1 = y2-y3; b2 = y3-y1; b3 = y1-y2;
     c1 = x3-x2; c2 = x1-x3; c3 = x2-x1;
-    inv2A = 1 ./ (2*area_v);
+    inv2A_signed = 1 ./ (2*area_signed);
+
+    g1x = b1 .* inv2A_signed;  g1y = c1 .* inv2A_signed;
+    g2x = b2 .* inv2A_signed;  g2y = c2 .* inv2A_signed;
+    g3x = b3 .* inv2A_signed;  g3y = c3 .* inv2A_signed;
 
     nE = numel(area_v);
     B_all = zeros(3, 6, nE);
-    B_all(1,1,:) = b1.*inv2A;  B_all(1,3,:) = b2.*inv2A;  B_all(1,5,:) = b3.*inv2A;
-    B_all(2,2,:) = c1.*inv2A;  B_all(2,4,:) = c2.*inv2A;  B_all(2,6,:) = c3.*inv2A;
-    B_all(3,1,:) = c1.*inv2A;  B_all(3,2,:) = b1.*inv2A;  B_all(3,3,:) = c2.*inv2A;
-    B_all(3,4,:) = b2.*inv2A;  B_all(3,5,:) = c3.*inv2A;  B_all(3,6,:) = b3.*inv2A;
+    B_all(1,1,:) = g1x;  B_all(1,3,:) = g2x;  B_all(1,5,:) = g3x;
+    B_all(2,2,:) = g1y;  B_all(2,4,:) = g2y;  B_all(2,6,:) = g3y;
+    B_all(3,1,:) = g1y;  B_all(3,2,:) = g1x;  B_all(3,3,:) = g2y;
+    B_all(3,4,:) = g2x;  B_all(3,5,:) = g3y;  B_all(3,6,:) = g3x;
 
-    hband_v = sqrt(area_v);
+    % Store all shape-function gradients for Oliver bandwidth calculation.
+    % Columns: [g1x g1y g2x g2y g3x g3y]
+    gradN_all = [g1x, g1y, g2x, g2y, g3x, g3y];
 
     dof_mat = [2*elems(:,1)-1, 2*elems(:,1), ...
                2*elems(:,2)-1, 2*elems(:,2), ...
@@ -421,9 +456,8 @@ end
 % =====================================================================
 %                        DAMAGE UPDATE
 % =====================================================================
-function [omega_new, kappa_new] = damage_update(u, B_all, dof_mat, ...
-                                                kappa_old, omega_old, ...
-                                                ef_e, p)
+function [omega_new, kappa_new, h_oliver] = damage_update(u, B_all, gradN_all, dof_mat, ...
+                                                kappa_old, omega_old, p)
     nE   = size(B_all,3);
     u_e  = reshape(u(dof_mat).', 6, 1, nE);
     strain = squeeze(pagemtimes(B_all, u_e)).';
@@ -432,6 +466,32 @@ function [omega_new, kappa_new] = damage_update(u, B_all, dof_mat, ...
     me  = (ex+ey)/2;
     rad = sqrt(((ex-ey)/2).^2 + (gxy/2).^2);
     e1  = me + rad;  e2 = me - rad;
+
+    % -----------------------------------------------------------------
+    % Full Oliver direction-dependent crack-band width for T3 elements
+    % -----------------------------------------------------------------
+    % Crack normal n is taken as the maximum principal strain direction.
+    % For a 2D strain tensor [ex gxy/2; gxy/2 ey], the principal angle is:
+    % theta = 0.5 atan2(gxy, ex-ey).
+    theta_p = 0.5 * atan2(gxy, ex - ey);
+    nx = cos(theta_p);
+    ny = sin(theta_p);
+
+    % If the strain state is almost hydrostatic/isotropic, the principal
+    % direction is numerically undefined. Use the x-direction only for those
+    % rare cases to keep h finite and stable.
+    iso = abs(ex-ey) + abs(gxy) < 1e-18;
+    nx(iso) = 1.0;
+    ny(iso) = 0.0;
+
+    h_oliver = oliver_bandwidth_T3(gradN_all, nx, ny);
+
+    % Exponential stress-strain softening parameter with Oliver bandwidth.
+    % eps_f = eps0/2 + GF/(h_oliver*ft)
+    ef_e = max(p.eps0/2 + p.GF ./ (h_oliver * p.ft), p.eps0 + 1e-12);
+
+    % Modified von Mises equivalent strain, using plane-stress out-of-plane
+    % principal strain approximation.
     e3  = -(p.nu/(1-p.nu)) .* (e1+e2);
     I1  = e1+e2+e3;
     J2  = 0.5*((e1-e2).^2 + (e2-e3).^2 + (e3-e1).^2);
@@ -456,6 +516,22 @@ function [omega_new, kappa_new] = damage_update(u, B_all, dof_mat, ...
     omega_new = min(max(omega_new,0), p.OMEGA_MAX);
     bad = ~isfinite(omega_new);
     omega_new(bad) = omega_old(bad);
+end
+
+function h = oliver_bandwidth_T3(gradN_all, nx, ny)
+    % Direction-dependent Oliver bandwidth:
+    % h(n) = 2 / sum_a |grad(N_a) dot n|, a = 1..3 for T3.
+    % gradN_all columns are [g1x g1y g2x g2y g3x g3y].
+    g1x = gradN_all(:,1); g1y = gradN_all(:,2);
+    g2x = gradN_all(:,3); g2y = gradN_all(:,4);
+    g3x = gradN_all(:,5); g3y = gradN_all(:,6);
+
+    den = abs(g1x.*nx + g1y.*ny) + ...
+          abs(g2x.*nx + g2y.*ny) + ...
+          abs(g3x.*nx + g3y.*ny);
+
+    h = 2.0 ./ max(den, 1e-14);
+    h = max(h, 1e-12);
 end
 
 

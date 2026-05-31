@@ -1,23 +1,24 @@
 Comparison summary — Gregoire 3PB (MATLAB vs Abaqus)
 ==================================================
-Mesh:         5576 CPS3 elements, 2904 nodes, 5808 DOFs  (identical)
-Load steps:   10 000  (identical)
+Abaqus data points : 201
+MATLAB data points : 10000
 
 Peak load:
-  MATLAB  3891.444 N
-  Abaqus  3891.444 N        (|Δ| = 1.5e-4 N)
+  Abaqus  3863.143 N   @ CMOD = 25.902 µm
+  MATLAB  3639.884 N   @ CMOD = 22.811 µm
+  |ΔP_peak| = 223.2586 N
 
-CMOD @ peak: 0.025948 mm    (identical to 3 sig figs)
+Pointwise (interpolated onto common CMOD grid, 9908 pts):
+  Load  max|Δ| = 651.731 N    mean|Δ| = 2.859e+02 N
 
-Pointwise (aligned, 10 000 pts):
-  Load  max|Δ| = 4.711 N    mean|Δ| = 5.717e-01 N
-  CMOD  max|Δ| = 4.967e-02 μm   mean|Δ| = 5.236e-03 μm
+Raw index-aligned CMOD diff (200 pts):
+  CMOD  max|Δ| = 3.131e+02 µm   mean|Δ| = 1.478e+02 µm
 
 Time:
-  MATLAB  wall-clock 239.46 s  (assembly 32.85 + damage 3.33 + solve 161.23 + other)
-  Abaqus  wall-clock 669 s     (CPU 408 s = user 392 + sys 16)
-  → MATLAB ≈ 2.79× faster
+  MATLAB  wall-clock 763.50 s
+  Abaqus  wall-clock 669.0 s
+  → Abaqus / MATLAB = 0.88×
 
 Memory (NOT directly comparable):
-  MATLAB  179.3 MB  (peak process RSS)
-  Abaqus   32   MB  (.dat memory-to-minimize-I/O estimate; .msg peak rounded to 0 GB)
+  MATLAB  84.0 MB  (peak process RSS)
+  Abaqus  32   MB  (.dat memory-to-minimize-I/O estimate)

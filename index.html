@@ -1,0 +1,137 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FRACMATH JOSS Repository</title>
+  <meta name="description" content="Finite element fracture and damage simulation workflows for three-point bending, Nooru-Mohamed, and torsion benchmarks.">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav" aria-label="Primary navigation">
+      <a class="brand" href="#top">FRACMATH JOSS</a>
+      <div class="nav-links">
+        <a href="#cases">Cases</a>
+        <a href="#results">Results</a>
+        <a href="#run">Run</a>
+        <a href="README.md">README</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero section-band">
+      <div class="hero-copy">
+        <p class="eyebrow">Finite element fracture simulation</p>
+        <h1>MATLAB and Abaqus workflows for concrete damage benchmarks.</h1>
+        <p class="lead">This repository collects three-point bending, Nooru-Mohamed, and torsion examples with solver code, comparison plots, and reproducible run notes.</p>
+        <div class="actions" aria-label="Main actions">
+          <a class="button primary" href="README.md">Read setup instructions</a>
+          <a class="button secondary" href="https://github.com/jaymavani7/JOSS_FRACMATH">View on GitHub</a>
+        </div>
+      </div>
+      <figure class="hero-media">
+        <img src="3PB/Comparison/comparison_plots/01_load_cmod_overlay.png" alt="Load CMOD overlay comparison plot">
+        <figcaption>MATLAB and Abaqus Load-CMOD comparison</figcaption>
+      </figure>
+    </section>
+
+    <section id="cases" class="section section-band muted">
+      <div class="section-heading">
+        <p class="eyebrow">Benchmark cases</p>
+        <h2>Repository contents</h2>
+      </div>
+      <div class="case-grid">
+        <article class="case-card">
+          <h3>Three-point bending</h3>
+          <p>MATLAB solver, Abaqus UMAT workflow, Load-CMOD comparison, damage fields, timing, and memory figures.</p>
+          <a href="3PB/">Open folder</a>
+        </article>
+        <article class="case-card">
+          <h3>Nooru-Mohamed</h3>
+          <p>3D TET4 mesh visualization and vectorized live damage simulation with Oliver crack-band regularization.</p>
+          <a href="Noor%20mohammad/">Open folder</a>
+        </article>
+        <article class="case-card">
+          <h3>Torsion</h3>
+          <p>Quasi-static torsion damage solver with multi-view animation, torque-theta curves, and peak damage output.</p>
+          <a href="Torsion/">Open folder</a>
+        </article>
+      </div>
+    </section>
+
+    <section id="results" class="section section-band">
+      <div class="section-heading">
+        <p class="eyebrow">Selected outputs</p>
+        <h2>Result gallery</h2>
+      </div>
+      <div class="gallery">
+        <figure>
+          <img src="3PB/Comparison/comparison_plots/02_peak_zoom.png" alt="Peak load zoom comparison plot">
+          <figcaption>3PB peak response zoom</figcaption>
+        </figure>
+        <figure>
+          <img src="3PB/Comparison/Matlab_result/fig_damage_peak.png" alt="MATLAB peak damage contour">
+          <figcaption>3PB MATLAB peak damage</figcaption>
+        </figure>
+        <figure>
+          <img src="3PB/Comparison/abaqus_result/abaqus_damage_peak.png" alt="Abaqus peak damage contour">
+          <figcaption>3PB Abaqus peak damage</figcaption>
+        </figure>
+        <figure>
+          <img src="Noor%20mohammad/Mesh/nooru_mesh_3D.png" alt="Nooru-Mohamed 3D mesh visualization">
+          <figcaption>Nooru-Mohamed mesh</figcaption>
+        </figure>
+        <figure>
+          <img src="Noor%20mohammad/Mesh/out_NR_vectorized_LIVE_damage_mesh/Job-1_FINAL_damage_geometry_with_mesh.png" alt="Nooru-Mohamed final damage geometry with mesh">
+          <figcaption>Nooru-Mohamed final damage</figcaption>
+        </figure>
+        <figure>
+          <img src="Torsion/working/out_torsion_LIVE_ONLY_OLIVER/Job-1_StaticFast_mod_vm_OLIVER_PEAK_LOAD_DAMAGE_iso.png" alt="Torsion peak load damage isosurface">
+          <figcaption>Torsion peak damage</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section id="run" class="section section-band muted">
+      <div class="section-heading">
+        <p class="eyebrow">Execution guide</p>
+        <h2>Files to run</h2>
+      </div>
+      <div class="run-list">
+        <article>
+          <h3>3PB MATLAB</h3>
+          <code>3PB/Matlab/solver_main_3pb.m</code>
+          <p>Run from <code>3PB/Matlab</code>.</p>
+        </article>
+        <article>
+          <h3>3PB Abaqus</h3>
+          <code>abaqus cae noGUI=RUN_3PB_ABAQUS_FULL_MATCH_MATLAB.py</code>
+          <p>Run from <code>3PB/abaqus</code>.</p>
+        </article>
+        <article>
+          <h3>3PB comparison</h3>
+          <code>python make_plots.py</code>
+          <p>Run from <code>3PB/Comparison/comparison_plots</code>.</p>
+        </article>
+        <article>
+          <h3>Nooru-Mohamed</h3>
+          <code>damage_static_NR_vectorized_LIVE_damage_different_colours('Job-1', opts)</code>
+          <p>Run from <code>Noor mohammad/Mesh</code>.</p>
+        </article>
+        <article>
+          <h3>Torsion</h3>
+          <code>run_torsion_stress_strain_static_fast_modvm_multiview_video</code>
+          <p>Run from <code>Torsion/working</code>.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>FRACMATH JOSS repository. See the README for complete run instructions and GitHub Pages publishing steps.</p>
+  </footer>
+</body>
+</html>
+
