@@ -1,0 +1,583 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{bm}
+\usepackage{mathtools}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{microtype}
+\usepackage[colorlinks=true,linkcolor=NavyBlue,urlcolor=NavyBlue,citecolor=NavyBlue]{hyperref}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+
+% --- light styling ---------------------------------------------------
+\titleformat{\section}{\Large\bfseries\color{MidnightBlue}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{MidnightBlue!85!black}}{\thesubsection}{0.6em}{}
+\pagestyle{fancy}\fancyhf{}
+\lhead{\small FRACMAT --- Theory Manual}
+\rhead{\small CDM, modified von Mises, Newton--Raphson}
+\cfoot{\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+
+\newtcolorbox{algobox}[1][]{
+  enhanced, breakable, colback=Gray!6, colframe=MidnightBlue!70,
+  boxrule=0.6pt, arc=2pt, left=8pt, right=8pt, top=6pt, bottom=6pt, #1}
+
+% --- shorthand -------------------------------------------------------
+\newcommand{\eps}{\bm{\varepsilon}}
+\newcommand{\sig}{\bm{\sigma}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\Id}{\bm{I}}
+\newcommand{\dev}{\mathrm{dev}}
+\newcommand{\tr}{\mathrm{tr}}
+\newcommand{\eqs}{\tilde{\varepsilon}}
+\newcommand{\dd}{\,\mathrm{d}}
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+
+\title{\textbf{Damage Mechanics in FRACMAT}\\[2pt]
+\large A worked derivation of the scalar CDM model,\\
+the modified von Mises equivalent strain, and the Newton--Raphson solver}
+\author{Jaykumar Mavani \quad\textbar\quad Madura Pathirage\\
+\small Dept.\ of Civil, Construction \& Environmental Engineering, University of New Mexico}
+\date{\today}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+\begin{abstract}
+\noindent
+This manual derives the constitutive model behind FRACMAT, step by step, with nothing
+swept under the rug. It covers the scalar isotropic damage law, the modified von Mises
+equivalent strain of de Vree and co-workers, exponential softening, crack band
+regularization through Oliver's characteristic length, and the modified Newton--Raphson
+scheme the code actually solves with. Where a formula looks like it was pulled from thin
+air, we check it against a uniaxial test so you can see why it has the shape it does.
+The aim is that a reader can follow every line from the free energy down to the element
+tangent and reproduce the model in any FE code, not only this one.
+\end{abstract}
+
+\tableofcontents
+\bigskip
+
+% =====================================================================
+\section{Scope and notation}
+% =====================================================================
+
+We model fracture in concrete and rock with one scalar damage variable. That is a
+deliberate choice. A single $\omega$ cannot represent crack closure or direction-dependent
+stiffness loss, but for monotonic loading it is accurate, cheap, and easy to debug, and it
+is the workhorse of structural-scale fracture simulation. The whole formulation lives in
+small strains and rate independence.
+
+Tensors are bold. Second-order tensors use a single bold letter ($\eps$, $\sig$), the
+fourth-order elastic tensor is $\C_0$, and $\Id$ is the second-order identity. A colon is a
+double contraction, $\C_0:\eps$ has components $C_{ijkl}\varepsilon_{kl}$, and a dyadic
+$\bm a \otimes \bm b$ has components $a_{ij}b_{kl}$. The strain invariants we need are
+%
+\begin{equation}
+I_1 = \tr\eps = \varepsilon_{kk},
+\qquad
+\bm e = \eps - \tfrac{1}{3} I_1 \Id,
+\qquad
+J_2 = \tfrac{1}{2}\,\bm e : \bm e ,
+\label{eq:invariants}
+\end{equation}
+%
+where $\bm e$ is the deviatoric strain. The factor of one half in $J_2$ is not cosmetic; it
+is exactly what makes the equivalent strain reduce to the axial strain under uniaxial
+tension, and getting it wrong (a stray $1/6$, say) shifts the whole damage threshold. We
+verify that in Section~\ref{sec:eqstrain}.
+
+% =====================================================================
+\section{Damage kinematics and a short thermodynamic argument}
+% =====================================================================
+
+\subsection{Effective stress and the stiffness reduction}
+
+Start from the physical picture. A representative volume of material carries microcracks
+and voids. Let $\omega \in [0,1]$ be the fraction of a cross-section that has been lost to
+those defects, so $\omega=0$ is virgin material and $\omega=1$ is fully broken. The load
+that used to pass through the whole section now passes through the remaining ligament, so
+the \emph{effective} stress on the intact material is
+%
+\begin{equation}
+\bar{\sig} = \frac{\sig}{1-\omega}.
+\end{equation}
+%
+The intact material is still linear elastic, $\bar{\sig} = \C_0 : \eps$, which gives the
+nominal stress carried by the damaged solid:
+%
+\begin{equation}
+\boxed{\;\sig = (1-\omega)\,\C_0 : \eps\;}
+\label{eq:stress}
+\end{equation}
+%
+This is the entire stress--strain law. Everything that follows is about one thing: how
+$\omega$ grows.
+
+\subsection{Why the law is allowed (the dissipation check)}
+
+It is worth confirming that \eqref{eq:stress} does not secretly create energy. Take the
+Helmholtz free energy per unit volume as the stored elastic energy scaled by the surviving
+stiffness,
+%
+\begin{equation}
+\psi(\eps,\omega) = (1-\omega)\,\tfrac{1}{2}\,\eps : \C_0 : \eps = (1-\omega)\,\psi_0(\eps).
+\end{equation}
+%
+The Clausius--Duhem inequality for an isothermal process reads
+$\mathcal{D} = \sig:\dot{\eps} - \dot\psi \ge 0$. Differentiating $\psi$,
+%
+\begin{equation}
+\dot\psi = (1-\omega)\,\C_0:\eps : \dot\eps \;-\; \psi_0\,\dot\omega
+        = \sig : \dot\eps \;-\; \psi_0\,\dot\omega,
+\end{equation}
+%
+so the dissipation collapses to
+%
+\begin{equation}
+\mathcal{D} = \psi_0(\eps)\,\dot\omega \;\ge\; 0.
+\end{equation}
+%
+Since $\psi_0 \ge 0$ always, the model is thermodynamically admissible as long as damage
+never decreases, $\dot\omega \ge 0$. That single constraint, no healing, is what the
+history variable in the next section enforces.
+
+% =====================================================================
+\section{The modified von Mises equivalent strain}
+\label{sec:eqstrain}
+% =====================================================================
+
+Damage should grow when the strain state is severe enough, but ``severe'' has to be a
+single number before we can compare it to a threshold. That number is the equivalent
+strain $\eqs$. Concrete is far weaker in tension than in compression, so $\eqs$ has to be
+asymmetric: a given tensile strain must count for much more than the same strain in
+compression. The modified von Mises measure of de Vree, Brekelmans and van Gils builds that
+asymmetry in through the strength ratio
+%
+\begin{equation}
+k = \frac{f_c}{f_t}, \qquad k \approx 10 \text{ for concrete}.
+\end{equation}
+%
+The measure is
+%
+\begin{equation}
+\eqs
+= \underbrace{\frac{k-1}{2k(1-2\nu)}\,I_1}_{\text{volumetric, signed}}
++ \frac{1}{2k}\sqrt{\Bigl(\frac{k-1}{1-2\nu}\Bigr)^{2} I_1^{2}
+        + \frac{12k}{(1+\nu)^{2}}\,J_2}.
+\label{eq:eqstrain}
+\end{equation}
+%
+The first term carries the sign of the volumetric strain, so tension and compression are
+treated differently from the start. The term under the root is positive either way and
+supplies the deviatoric (shape-change) contribution. The grouping of constants looks
+arbitrary until you push two load cases through it.
+
+\subsection{Why these exact constants: the uniaxial tension check}
+
+Put the material in uniaxial tension with axial strain $\varepsilon>0$. The lateral
+strains are $-\nu\varepsilon$, so $\eps = \mathrm{diag}(\varepsilon,-\nu\varepsilon,-\nu\varepsilon)$.
+The first invariant is
+%
+\begin{equation}
+I_1 = \varepsilon(1-2\nu).
+\end{equation}
+%
+The deviatoric components come out to
+%
+\begin{equation}
+e_{11} = \tfrac{2}{3}(1+\nu)\varepsilon, \qquad
+e_{22}=e_{33} = -\tfrac{1}{3}(1+\nu)\varepsilon,
+\end{equation}
+%
+and the deviatoric invariant is
+%
+\begin{equation}
+J_2 = \tfrac{1}{2}\bigl(e_{11}^2+e_{22}^2+e_{33}^2\bigr)
+    = \tfrac{1}{2}\cdot\tfrac{6}{9}(1+\nu)^2\varepsilon^2
+    = \tfrac{1}{3}(1+\nu)^2\varepsilon^2.
+\end{equation}
+%
+Now feed these into the two pieces of \eqref{eq:eqstrain}. The deviatoric term inside the
+root cancels the $(1+\nu)^2$ cleanly,
+%
+\begin{equation}
+\frac{12k}{(1+\nu)^2}J_2 = \frac{12k}{(1+\nu)^2}\cdot\tfrac{1}{3}(1+\nu)^2\varepsilon^2 = 4k\,\varepsilon^2,
+\end{equation}
+%
+and the volumetric term inside the root cancels the $(1-2\nu)$,
+%
+\begin{equation}
+\Bigl(\frac{k-1}{1-2\nu}\Bigr)^2 I_1^2
+= \Bigl(\frac{k-1}{1-2\nu}\Bigr)^2 \varepsilon^2(1-2\nu)^2 = (k-1)^2\varepsilon^2.
+\end{equation}
+%
+So the root simplifies to a perfect square:
+%
+\begin{equation}
+\sqrt{(k-1)^2\varepsilon^2 + 4k\varepsilon^2}
+= \varepsilon\sqrt{k^2+2k+1} = \varepsilon(k+1).
+\end{equation}
+%
+The leading term is $\frac{k-1}{2k(1-2\nu)}\varepsilon(1-2\nu) = \frac{k-1}{2k}\varepsilon$, and putting
+both together,
+%
+\begin{equation}
+\eqs = \frac{k-1}{2k}\varepsilon + \frac{1}{2k}\varepsilon(k+1)
+     = \frac{\varepsilon}{2k}\bigl[(k-1)+(k+1)\bigr] = \varepsilon.
+\end{equation}
+%
+That is the point of the constants. Under uniaxial tension the equivalent strain is just
+the axial strain, so the threshold $\kappa_0$ is read straight off a tension test with no
+correction factor.
+
+\subsection{And the compression check}
+
+Repeat with uniaxial compression, axial strain $-\varepsilon$ ($\varepsilon>0$). Now
+$I_1=-\varepsilon(1-2\nu)$, the first term flips sign, the root is unchanged, and
+%
+\begin{equation}
+\eqs = -\frac{k-1}{2k}\varepsilon + \frac{k+1}{2k}\varepsilon
+     = \frac{\varepsilon}{2k}\bigl[-(k-1)+(k+1)\bigr] = \frac{\varepsilon}{k}.
+\end{equation}
+%
+Compression reaches the same $\eqs$ only at $k$ times the strain. Damage therefore starts
+in compression at roughly $k$ times the tensile load, which is exactly the strength ratio
+$f_c/f_t$ we asked for. The measure does what concrete does.
+
+% =====================================================================
+\section{Damage growth: loading function and history}
+% =====================================================================
+
+Damage tracks the worst strain the point has ever felt. Define a history variable $\kappa$
+and a loading function
+%
+\begin{equation}
+f(\eqs,\kappa) = \eqs - \kappa .
+\end{equation}
+%
+The state must satisfy the Kuhn--Tucker (loading--unloading) conditions
+%
+\begin{equation}
+f \le 0, \qquad \dot\kappa \ge 0, \qquad \dot\kappa\, f = 0 .
+\end{equation}
+%
+Read them in plain terms. The strain state can never sit outside the current envelope
+($f\le 0$); the memory only ever grows ($\dot\kappa\ge0$); and it grows only while the
+state is pushing on the envelope ($\dot\kappa f=0$). Integrated over a monotonic-in-memory
+history this is simply
+%
+\begin{equation}
+\kappa(t) = \max\Bigl(\kappa_0,\ \max_{\tau\le t}\eqs(\tau)\Bigr),
+\label{eq:history}
+\end{equation}
+%
+with the initial threshold
+%
+\begin{equation}
+\kappa_0 = \frac{f_t}{E}.
+\end{equation}
+%
+Below $\kappa_0$ the material is elastic and $\omega=0$. The instant $\eqs$ first exceeds
+$\kappa_0$, damage starts and never reverses, which is the no-healing condition the
+dissipation argument demanded.
+
+% =====================================================================
+\section{Exponential softening}
+% =====================================================================
+
+We need a rule $\omega(\kappa)$ that climbs from $0$ at $\kappa_0$ toward $1$ as $\kappa$
+grows. FRACMAT uses the exponential law
+%
+\begin{equation}
+\omega(\kappa) = 1 - \frac{\kappa_0}{\kappa}\,
+\exp\!\left[-\frac{\kappa-\kappa_0}{\varepsilon_f-\kappa_0}\right],
+\qquad \kappa \ge \kappa_0 .
+\label{eq:softening}
+\end{equation}
+%
+Two limits check out by inspection: at $\kappa=\kappa_0$ the exponential is $1$ and the
+prefactor is $1$, so $\omega=0$; as $\kappa\to\infty$ both the $\kappa_0/\kappa$ factor and
+the exponential go to zero, so $\omega\to1$. The parameter $\varepsilon_f$ sets how fast the
+material lets go, and we will pin it down from fracture energy in the next section.
+
+A detail that matters for the solver: the uniaxial stress during monotonic loading takes a
+clean closed form. With $\varepsilon=\kappa$ during loading and $E\kappa_0=f_t$,
+%
+\begin{equation}
+\sigma = (1-\omega)E\kappa
+       = E\kappa_0\exp\!\left[-\frac{\kappa-\kappa_0}{\varepsilon_f-\kappa_0}\right]
+       = f_t\,\exp\!\left[-\frac{\kappa-\kappa_0}{\varepsilon_f-\kappa_0}\right].
+\label{eq:softstress}
+\end{equation}
+%
+The stress decays exponentially from the tensile strength. We use this in a moment to get
+the dissipated energy in one integral.
+
+We will also need the slope of the damage law for the tangent. Differentiating
+\eqref{eq:softening} with the product rule,
+%
+\begin{equation}
+\frac{\dd\omega}{\dd\kappa}
+= \frac{\kappa_0}{\kappa}\exp\!\left[-\frac{\kappa-\kappa_0}{\varepsilon_f-\kappa_0}\right]
+\left(\frac{1}{\kappa} + \frac{1}{\varepsilon_f-\kappa_0}\right),
+\qquad \kappa \ge \kappa_0 .
+\label{eq:domega}
+\end{equation}
+%
+It is positive throughout, as a softening law must be, since every factor is positive.
+
+% =====================================================================
+\section{Crack band regularization and the calibration of $\varepsilon_f$}
+% =====================================================================
+
+Plain softening has a famous problem. Refine the mesh and the damage localizes into one
+element, the dissipated energy shrinks with the element size, and the answer never
+converges. The crack band method fixes this by making the local softening branch depend on
+the element size so that the energy released per unit crack \emph{area} stays fixed at the
+material fracture energy $G_F$.
+
+\subsection{Energy under the softening curve}
+
+The energy dissipated per unit volume in a fully softened material point is the area under
+the uniaxial stress--strain curve. Split it into the elastic triangle up to $\kappa_0$ and
+the softening tail from \eqref{eq:softstress}:
+%
+\begin{align}
+g_f &= \underbrace{\tfrac{1}{2} f_t \kappa_0}_{\text{elastic}}
+     + \underbrace{\int_{\kappa_0}^{\infty} f_t
+       \exp\!\left[-\frac{\kappa-\kappa_0}{\varepsilon_f-\kappa_0}\right]\dd\kappa}_{\text{softening tail}}
+     \\[2pt]
+    &= \tfrac{1}{2} f_t \kappa_0 + f_t(\varepsilon_f-\kappa_0)
+     = f_t\!\left(\varepsilon_f - \tfrac{1}{2}\kappa_0\right).
+\label{eq:gf}
+\end{align}
+%
+The tail integral is elementary: the integral of a decaying exponential is just its decay
+length $(\varepsilon_f-\kappa_0)$ times the starting value $f_t$.
+
+\subsection{Tie the volume energy to the area energy}
+
+Crack band regularization says the energy per unit \emph{area}, $G_F$, equals the energy
+per unit \emph{volume}, $g_f$, smeared over a band one characteristic length $h$ wide:
+%
+\begin{equation}
+G_F = h\,g_f .
+\end{equation}
+%
+Substitute \eqref{eq:gf} and solve for the only free parameter:
+%
+\begin{equation}
+\boxed{\;\varepsilon_f = \frac{G_F}{h\,f_t} + \frac{\kappa_0}{2}\;}
+\label{eq:epsf}
+\end{equation}
+%
+Each element gets its own $\varepsilon_f$ from its own $h$. A big element softens faster
+(smaller $\varepsilon_f$), a small element softens slower, and the product $h\,g_f$ comes
+out to $G_F$ either way. That is what makes the peak load and the total dissipation
+independent of the mesh.
+
+\subsection{The characteristic length: Oliver's projection}
+
+The remaining question is what $h$ to use. For a linear triangle, FRACMAT uses Oliver's
+projection,
+%
+\begin{equation}
+h = \frac{2A_e}{\ell_{\max}},
+\end{equation}
+%
+where $A_e$ is the element area and $\ell_{\max}$ its longest edge. Geometrically this is
+the width of the element measured across the band, i.e.\ the height of the triangle on its
+longest side. The longest edge is taken as the proxy for the crack direction, so $h$ is the
+distance the crack has to traverse. For 3D elements the same idea uses the element volume
+and the projected area of the dominant face. The practical payoff, and the reason the
+torsion benchmark works at all, is that $h$ follows the local crack orientation instead of
+being locked to a fixed mesh diagonal.
+
+% =====================================================================
+\section{From the continuum to a discrete residual}
+% =====================================================================
+
+The equilibrium statement is the principle of virtual work: for every admissible virtual
+displacement $\delta\bm u$,
+%
+\begin{equation}
+\int_\Omega \delta\eps : \sig \dd V
+= \int_\Omega \delta\bm u\cdot\bm b \dd V
++ \int_{\Gamma_t}\delta\bm u\cdot\bm t \dd S .
+\end{equation}
+%
+Interpolate the displacement with shape functions, $\bm u = \bm N\bm d$, so that strain is
+$\eps = \bm B\bm d$ with $\bm B$ the usual strain--displacement matrix. The virtual work
+statement turns into a set of nonlinear algebraic equations in the nodal displacements
+$\bm d$:
+%
+\begin{equation}
+\bm r(\bm d) = \bm f^{\text{int}}(\bm d) - \bm f^{\text{ext}} = \bm 0,
+\qquad
+\bm f^{\text{int}} = \int_\Omega \bm B^{\!\top}\sig \dd V .
+\label{eq:residual}
+\end{equation}
+%
+The internal force is nonlinear in $\bm d$ because $\sig$ depends on $\omega$, which depends
+on the strain through $\eqs$ and the history. We solve \eqref{eq:residual} under
+displacement control, prescribing the loaded degrees of freedom and iterating on the free
+ones.
+
+% =====================================================================
+\section{The Newton--Raphson solve}
+% =====================================================================
+
+\subsection{The consistent tangent, derived in full}
+
+Newton's method linearizes the residual: given an iterate $\bm d^{(i)}$ with residual
+$\bm r^{(i)}$, solve $\bm K_T\,\delta\bm d = -\bm r^{(i)}$ and update
+$\bm d^{(i+1)} = \bm d^{(i)} + \delta\bm d$. The tangent is
+$\bm K_T = \partial \bm f^{\text{int}}/\partial\bm d = \int_\Omega \bm B^{\!\top}
+\bm D_T \bm B \dd V$, so the whole problem reduces to the material tangent
+$\bm D_T = \dd\sig/\dd\eps$.
+
+Differentiate the stress law \eqref{eq:stress}. During active loading the history follows
+the equivalent strain, $\kappa=\eqs$ and $\dd\kappa=\dd\eqs$, so by the product rule
+%
+\begin{equation}
+\dd\sig
+= (1-\omega)\,\C_0:\dd\eps
+\;-\; \frac{\dd\omega}{\dd\kappa}\,(\C_0:\eps)\,\dd\eqs .
+\end{equation}
+%
+The first term is the secant stiffness acting on the strain increment. The second is the
+loss of stiffness as damage advances. Writing $\dd\eqs = \dfrac{\partial\eqs}{\partial\eps}:\dd\eps$,
+the consistent tangent is
+%
+\begin{equation}
+\boxed{\;
+\bm D_T = (1-\omega)\,\C_0
+\;-\; \frac{\dd\omega}{\dd\kappa}\,
+\bigl(\C_0:\eps\bigr)\otimes\frac{\partial\eqs}{\partial\eps}
+\;}
+\label{eq:tangent}
+\end{equation}
+%
+The first part is symmetric. The second is a rank-one dyad and is generally not symmetric,
+which is the source of the unsymmetric, sometimes ill-conditioned tangents that make full
+Newton stall on the steep part of the softening branch.
+
+\subsection{The gradient of the equivalent strain}
+
+The dyad in \eqref{eq:tangent} needs $\partial\eqs/\partial\eps$. Write \eqref{eq:eqstrain}
+compactly with
+%
+\begin{equation}
+a = \frac{k-1}{2k(1-2\nu)}, \quad
+b = \frac{k-1}{1-2\nu}, \quad
+c = \frac{12k}{(1+\nu)^2}, \quad
+S = \sqrt{b^2 I_1^2 + c\,J_2},
+\end{equation}
+%
+so that $\eqs = a I_1 + \tfrac{1}{2k}S$. Using $\partial I_1/\partial\eps = \Id$ and
+$\partial J_2/\partial\eps = \bm e$ (which follows from $J_2=\tfrac12\bm e:\bm e$ and the
+deviatoric projection),
+%
+\begin{equation}
+\frac{\partial\eqs}{\partial\eps}
+= a\,\Id
++ \frac{1}{2k}\cdot\frac{1}{2S}\Bigl(2b^2 I_1\,\Id + c\,\bm e\Bigr)
+= a\,\Id + \frac{b^2 I_1}{2kS}\,\Id + \frac{c}{4kS}\,\bm e .
+\label{eq:deqs}
+\end{equation}
+%
+As $S\to 0$ near a stress-free state this expression is singular, which is harmless because
+damage is inactive there and the dyad term is never assembled; the code guards the divide
+with the loading check anyway.
+
+\subsection{What FRACMAT actually solves: the modified (secant) scheme}
+
+Full Newton with \eqref{eq:tangent} converges quadratically but is fragile once the dyad
+term turns the tangent unsymmetric and nearly singular. FRACMAT instead uses the
+\emph{modified} Newton--Raphson scheme: keep only the symmetric secant part,
+%
+\begin{equation}
+\bm D_T \approx (1-\omega)\,\C_0,
+\qquad
+\bm K_T = \int_\Omega \bm B^{\!\top}(1-\omega)\,\C_0\,\bm B \dd V .
+\label{eq:secant}
+\end{equation}
+%
+This drops the rank-one term entirely. The trade is deliberate: convergence slows from
+quadratic to linear, but the tangent stays symmetric positive definite, the factorization
+is stable, and it can be reused across iterations within a step. The residual
+\eqref{eq:residual} still uses the true damaged stress, so the converged solution is the
+exact one; only the path to it is slower. On the benchmarks this buys robustness through
+the snap-back-prone softening regime at a cost of a few extra iterations per step, which
+the displacement-controlled stepping absorbs.
+
+\subsection{Solver loop}
+
+\begin{algobox}
+\textbf{Modified Newton--Raphson, one displacement-controlled step}
+\begin{enumerate}[leftmargin=1.4em,itemsep=2pt]
+\item Apply the prescribed displacement increment to the loaded DOFs; freeze the supports.
+\item \textbf{For} iteration $i=0,1,2,\dots$ until $\norm{\bm r}\le \texttt{tol}$:
+  \begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
+  \item For every element, compute $\eps=\bm B\bm d$, then $I_1$, $J_2$, and
+        $\eqs$ from \eqref{eq:eqstrain}.
+  \item Update history $\kappa=\max(\kappa,\eqs)$ from \eqref{eq:history};
+        if $\kappa>\kappa_0$, update $\omega$ from \eqref{eq:softening} with the
+        element's $\varepsilon_f$ from \eqref{eq:epsf}.
+  \item Assemble $\sig=(1-\omega)\C_0:\eps$ and the internal force
+        $\bm f^{\text{int}}=\int\bm B^{\!\top}\sig\dd V$.
+  \item Form the residual $\bm r = \bm f^{\text{int}}-\bm f^{\text{ext}}$ on the free DOFs.
+  \item Assemble the secant tangent $\bm K_T$ from \eqref{eq:secant};
+        solve $\bm K_T\,\delta\bm d = -\bm r$ with sparse \texttt{backslash} (UMFPACK).
+  \item Update $\bm d \leftarrow \bm d + \delta\bm d$.
+  \end{enumerate}
+\item Commit the converged $\kappa$ and $\omega$ as the history for the next step.
+\end{enumerate}
+\end{algobox}
+
+All of step~2(a)--(c) runs over every element in one batched tensor operation
+(\texttt{pagemtimes} in MATLAB), which is where the vectorized speedup comes from. The
+sparse solve in 2(e) dominates the wall-clock time, as the timing table in the JOSS paper
+shows.
+
+% =====================================================================
+\section{Symbol reference}
+% =====================================================================
+
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}cl@{\hskip 2em}cl@{}}
+\toprule
+Symbol & Meaning & Symbol & Meaning \\
+\midrule
+$\omega$        & scalar damage, $[0,1]$       & $E,\nu$         & Young's modulus, Poisson ratio \\
+$\sig,\eps$     & stress, strain               & $\C_0$          & virgin elastic stiffness \\
+$\eqs$          & equivalent strain            & $\kappa$        & history variable \\
+$I_1$           & first strain invariant       & $J_2$           & second deviatoric invariant \\
+$\bm e$         & deviatoric strain            & $k=f_c/f_t$     & strength ratio \\
+$f_t,f_c$       & tensile, compressive strength& $\kappa_0=f_t/E$& damage onset threshold \\
+$\varepsilon_f$ & softening parameter          & $G_F$           & fracture energy \\
+$g_f$           & energy per unit volume       & $h$             & characteristic length \\
+$A_e,\ell_{\max}$& element area, longest edge  & $\bm B$         & strain--displacement matrix \\
+$\bm r$         & residual                     & $\bm K_T$       & tangent stiffness \\
+$\bm D_T$       & material tangent             & $\bm d$         & nodal displacements \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\bigskip
+\noindent\textbf{Primary references.} de Vree, Brekelmans \& van Gils (1995) for the
+equivalent strain; Ba\v{z}ant \& Oh (1983) for crack band theory; Oliver (1989) for the
+characteristic-length projection; Peerlings et al.\ (1996) and Jir\'asek (2004) for the
+damage formulation and its numerics. Full citations are in the repository
+\texttt{paper.bib}.
+
+\end{document}

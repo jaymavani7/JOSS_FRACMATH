@@ -1,0 +1,14 @@
+ODB: C:\Users\jmavani\OneDrive - University of New Mexico\Desktop\JOSS\3pb_2\abaqus\Gregoire_3PB\Gregoire_3PB.odb
+Threshold (crack = omega >= this): 0.99
+Step: Loading   frames: 1147
+Field outputs on last frame: AC YIELD, E, PE, PEEQ, PEMAG, RF, S, SDV1, SDV2, U
+Damage field used: SDV2 (component 0)
+MAX omega anywhere in ODB: 1.000000  (frame 1050 of 1146)
+==> Damage reaches the threshold: crack SHOULD render.
+    If you still saw no figure, matplotlib was missing in
+    Abaqus python (CSVs are written; use plot_damage_from_csv.py).
+Instance: BEAMINST
+Frame indices -> peak: 230  postpeak: 688  last: 1146
+  omega_peak.csv       rows:     0   max omega: -1.0000
+  omega_postpeak.csv   rows:     0   max omega: -1.0000
+  omega_last.csv       rows: 14268   max omega: 1.0000

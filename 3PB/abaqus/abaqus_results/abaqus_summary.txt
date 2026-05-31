@@ -1,6 +1,0 @@
-Abaqus 3PB MATLAB-match summary
-Curve points : 201
-Peak load    : 3863.1426 N
-Peak load    : 3.8631 kN
-CMOD @ peak  : 0.025902 mm
-Time @ peak  : 1.600000e-01

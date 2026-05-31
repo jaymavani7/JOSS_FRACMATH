@@ -1,0 +1,133 @@
+Analysis initiated from SIMULIA established products
+Abaqus JOB Gregoire_3PB
+Abaqus 2024
+Abaqus License Manager checked out the following licenses:
+Abaqus/Standard checked out 5 tokens from Flexnet server CCEE-LSVM02.
+<43 out of 48 licenses remain available>.
+Begin Compiling Abaqus/Standard User Subroutines
+5/31/2026 2:08:20 PM
+Intel(R) Fortran Compiler for applications running on Intel(R) 64, Version 2025.3.0 Build 20251010
+Copyright (C) 1985-2025 Intel Corporation. All rights reserved.
+
+End Compiling Abaqus/Standard User Subroutines
+Begin Linking Abaqus/Standard User Subroutines
+   Creating library standardU.lib and object standardU.exp
+End Linking Abaqus/Standard User Subroutines
+5/31/2026 2:08:21 PM
+Begin Analysis Input File Processor
+5/31/2026 2:08:21 PM
+Run pre.exe
+5/31/2026 2:08:24 PM
+End Analysis Input File Processor
+Begin Abaqus/Standard Analysis
+5/31/2026 2:08:24 PM
+Run standard.exe
+5/31/2026 2:30:44 PM
+End Abaqus/Standard Analysis
+Begin SIM Wrap-up
+5/31/2026 2:30:46 PM
+Run SMASimUtility.exe
+5/31/2026 2:30:46 PM
+End SIM Wrap-up
+!!! EXCEPTION:
+!!!   System Error RemoveDirectory: Access is denied.
+
+!!! TRACEBACK:
+!!!   SMASimUttFileUtils::RemoveDir
+!!!   SMASimFileCleaner::Teardown
+!!!   SMASimFileCleaner_Teardown
+!!!   ffi_prep_go_closure
+!!!   ffi_call_go
+!!!   ffi_call
+!!!   DllCanUnloadNow
+!!!   DllCanUnloadNow
+!!!   <stack frame not available>
+!!!   PyObject_MakeTpCall
+!!!   PyEval_EvalFrameDefault
+!!!   PyEval_Vector
+!!!   PyFunction_Vectorcall
+!!!   PyCell_Set
+!!!   PyCell_Set
+!!!   PyEval_EvalFrameDefault
+!!!   PyEval_Vector
+!!!   PyFunction_Vectorcall
+!!!   PyCell_Set
+!!!   PyCell_Set
+!!!   PyEval_EvalFrameDefault
+!!!   PyEval_Vector
+!!!   PyFunction_Vectorcall
+!!!   PyCell_Set
+!!!   PyCell_Set
+!!!   PyEval_EvalFrameDefault
+!!!   PyEval_Vector
+!!!   PyEval_EvalCode
+!!!   PyErr_Display
+!!!   PyErr_Display
+!!!   PyErr_Display
+!!!   PyRun_SimpleFileObject
+!!!   PyRun_AnyFileObject
+!!!   Py_RunMain
+!!!   Py_RunMain
+!!!   Py_RunMain
+!!!   Py_RunMain
+!!!   Py_Main
+!!!   <stack frame not available>
+!!!   <stack frame not available>
+!!!   <stack frame not available>
+!!!   BaseThreadInitThunk
+!!!   RtlUserThreadStart
+!!! EXCEPTION:
+!!!   System Error RemoveDirectory: Access is denied.
+
+!!! TRACEBACK:
+!!!   SMASimUttFileUtils::RemoveDir
+!!!   SMASimInterface_initializeC
+!!!   _CxxFrameHandler4
+!!!   <stack frame not available>
+!!!   RtlCaptureContext2
+!!!   SMASimFileCleaner::Teardown
+!!!   SMASimFileCleaner_Teardown
+!!!   ffi_prep_go_closure
+!!!   ffi_call_go
+!!!   ffi_call
+!!!   DllCanUnloadNow
+!!!   DllCanUnloadNow
+!!!   <stack frame not available>
+!!!   PyObject_MakeTpCall
+!!!   PyEval_EvalFrameDefault
+!!!   PyEval_Vector
+!!!   PyFunction_Vectorcall
+!!!   PyCell_Set
+!!!   PyCell_Set
+!!!   PyEval_EvalFrameDefault
+!!!   PyEval_Vector
+!!!   PyFunction_Vectorcall
+!!!   PyCell_Set
+!!!   PyCell_Set
+!!!   PyEval_EvalFrameDefault
+!!!   PyEval_Vector
+!!!   PyFunction_Vectorcall
+!!!   PyCell_Set
+!!!   PyCell_Set
+!!!   PyEval_EvalFrameDefault
+!!!   PyEval_Vector
+!!!   PyEval_EvalCode
+!!!   PyErr_Display
+!!!   PyErr_Display
+!!!   PyErr_Display
+!!!   PyRun_SimpleFileObject
+!!!   PyRun_AnyFileObject
+!!!   Py_RunMain
+!!!   Py_RunMain
+!!!   Py_RunMain
+!!!   Py_RunMain
+!!!   Py_Main
+!!!   <stack frame not available>
+!!!   <stack frame not available>
+!!!   <stack frame not available>
+!!!   BaseThreadInitThunk
+!!!   RtlUserThreadStart
+!!! Error in SMASimFileCleaner::RemoveDir "System Error RemoveDirectory: Access is denied.
+"
+!!! Failure to delete directory: "C:\Users\jmavani\OneDrive - University of New Mexico\Desktop\JOSS\3pb_2\abaqus\Gregoire_3PB\Gregoire_3PB.simdir"
+Abaqus JOB Gregoire_3PB COMPLETED
