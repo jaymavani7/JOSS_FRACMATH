@@ -2,7 +2,7 @@
 #
 # Abaqus/Viewer Release 2024 replay file
 # Internal Version: 2023_09_21-06.55.25 RELr426 190762
-# Run by jmavani on Sat May 30 18:12:07 2026
+# Run by jmavani on Sat May 30 18:14:07 2026
 #
 
 # from driverUtils import executeOnCaeGraphicsStartup
@@ -28,9 +28,20 @@ o2 = session.openOdb(name='Gregoire_3PB_MATLAB_MATCH.odb')
 #: Number of Steps:              1
 session.viewports['Viewport: 1'].setValues(displayedObject=o2)
 session.viewports['Viewport: 1'].makeCurrent()
+session.viewports['Viewport: 1'].odbDisplay.display.setValues(plotState=(
+    CONTOURS_ON_DEF, ))
 session.viewports['Viewport: 1'].odbDisplay.setPrimaryVariable(
     variableLabel='SDV2', outputPosition=INTEGRATION_POINT, )
-session.viewports['Viewport: 1'].odbDisplay.display.setValues(
-    plotState=CONTOURS_ON_DEF)
 session.viewports['Viewport: 1'].odbDisplay.commonOptions.setValues(
     deformationScaling=UNIFORM, uniformScaleFactor=1)
+session.viewports['Viewport: 1'].odbDisplay.setFrame(step=0, frame=200 )
+session.viewports['Viewport: 1'].odbDisplay.setFrame(step=0, frame=200 )
+session.viewports['Viewport: 1'].odbDisplay.setFrame(step=0, frame=200 )
+session.viewports['Viewport: 1'].animationController.setValues(
+    animationType=HARMONIC)
+session.viewports['Viewport: 1'].animationController.play(duration=UNLIMITED)
+session.viewports['Viewport: 1'].animationController.setValues(
+    animationType=TIME_HISTORY)
+session.viewports['Viewport: 1'].animationController.play(duration=UNLIMITED)
+session.viewports['Viewport: 1'].animationController.setValues(
+    animationType=NONE)
