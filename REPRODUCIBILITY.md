@@ -7,7 +7,7 @@ Run each workflow from the folder listed in that section. The scripts use relati
 ## 0. Clone and prepare the repository
 
 ```bash
-git clone https://github.com/Jaykumar9033/FRACMATH.git
+git clone https://github.com/jaymavani7/JOSS_FRACMATH.git
 cd FRACMATH
 git lfs install
 git lfs pull

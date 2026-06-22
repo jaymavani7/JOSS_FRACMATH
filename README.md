@@ -6,7 +6,7 @@ This repository contains the code, input data, generated results, and documentat
 
 Authors: Jaykumar Mavani and Madura Pathirage, Department of Civil, Construction, and Environmental Engineering, University of New Mexico.
 
-The GitHub repository is `Jaykumar9033/FRACMATH`, and the software described in the paper is `FRACMATH`.
+The GitHub repository is `jaymavani7/JOSS_FRACMATH`, and the software described in the paper is `FRACMATH`.
 
 ## What is included
 
