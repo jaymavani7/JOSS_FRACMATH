@@ -20,6 +20,7 @@ affiliations:
   - name: Gerald May Department of Civil, Construction, and Environmental Engineering, University of New Mexico, Albuquerque, NM, USA
     index: 1
 date: 2026-06-22
+submitted_at: 2026-06-22
 bibliography: paper.bib
 header-includes:
   - \setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
