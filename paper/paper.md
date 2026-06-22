@@ -32,6 +32,8 @@ header-includes:
   - \renewcommand{\bottomfraction}{0.82}
   - \renewcommand{\textfraction}{0.06}
   - \renewcommand{\floatpagefraction}{0.86}
+  - \setlength{\linenumbersep}{2pt}
+  - \renewcommand\linenumberfont{\normalfont\tiny}
 ---
 
 # Summary
