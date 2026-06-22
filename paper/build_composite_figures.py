@@ -106,6 +106,30 @@ def row_equal_height(
         x += im.width + gap
     canvas.save(IMG / output, optimize=True)
 
+def b1_results_layout(output: str) -> None:
+    width = 1850
+    margin = 30
+    gap = 28
+    left_w = 700
+    right_w = width - 2 * margin - gap - left_w
+    height = 500
+
+    load_panel = fit(load("load_cmod_comparison.png"), left_w, height - 2 * margin)
+    timing_panel = fit(load("time_comparison_bar.png"), right_w, height - 2 * margin)
+
+    canvas = Image.new("RGB", (width, height), WHITE)
+    x = margin
+    y = (height - load_panel.height) // 2
+    canvas.paste(load_panel, (x, y))
+    label_panel(canvas, (x + 12, y + 12), "(a)")
+
+    x = margin + left_w + gap
+    y = (height - timing_panel.height) // 2
+    canvas.paste(timing_panel, (x, y))
+    label_panel(canvas, (x + 12, y + 12), "(b)")
+    label_panel(canvas, (x + int(timing_panel.width * 0.57), y + 12), "(c)")
+    canvas.save(IMG / output, optimize=True)
+
 def grid(
     panels: list[tuple[str, str]],
     output: str,
@@ -138,10 +162,10 @@ def nooru_mesh_layout(output: str) -> None:
     panel_w = (width - 2 * margin - gap) // 2
     panel_h = 650
 
-    bc = fit(load("nooru_BC_2D.png"), panel_w, 430)
+    bc = fit(load("nooru_BC_2D.png"), panel_w, 345)
     mesh = fit(load("nooru_mesh_3D.png"), panel_w, panel_h)
 
-    crack = fit(crop_fraction(load("Exp_noor.png"), (0.0, 0.12, 1.0, 0.76)), panel_w, 170)
+    crack = fit(crop_fraction(load("Exp_noor.png"), (0.0, 0.08, 1.0, 0.86)), panel_w, 265)
 
     height = 2 * margin + panel_h
     canvas = Image.new("RGB", (width, height), WHITE)
@@ -149,8 +173,11 @@ def nooru_mesh_layout(output: str) -> None:
     x = margin
     y = margin
     canvas.paste(bc, (x + (panel_w - bc.width) // 2, y))
-    canvas.paste(crack, (x + (panel_w - crack.width) // 2, y + panel_h - crack.height))
+    crack_x = x + (panel_w - crack.width) // 2
+    crack_y = y + panel_h - crack.height
+    canvas.paste(crack, (crack_x, crack_y))
     label_panel(canvas, (x + 10, y + 10), "(a)")
+    label_panel(canvas, (crack_x + 10, crack_y + 10), "(c)")
 
     x = margin + panel_w + gap
     canvas.paste(mesh, (x + (panel_w - mesh.width) // 2, y + (panel_h - mesh.height) // 2))
@@ -197,16 +224,7 @@ def main() -> None:
         gap=22,
         margin=28,
     )
-    row_equal_height(
-        [
-            ("load_cmod_comparison.png", "(a)"),
-            ("time_comparison_bar.png", "(b)"),
-        ],
-        "fig_b1_results.png",
-        height=430,
-        gap=28,
-        margin=30,
-    )
+    b1_results_layout("fig_b1_results.png")
     three_pb_layout("fig_b1_compact.png")
     nooru_mesh_layout("fig_b2_mesh.png")
     grid(
