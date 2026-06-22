@@ -21,6 +21,16 @@ affiliations:
     index: 1
 date: 21 June 2026
 bibliography: paper.bib
+header-includes:
+  - \setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+  - \setlength{\floatsep}{8pt plus 2pt minus 2pt}
+  - \setlength{\intextsep}{8pt plus 2pt minus 2pt}
+  - \setlength{\abovecaptionskip}{4pt}
+  - \setlength{\belowcaptionskip}{0pt}
+  - \renewcommand{\topfraction}{0.92}
+  - \renewcommand{\bottomfraction}{0.82}
+  - \renewcommand{\textfraction}{0.06}
+  - \renewcommand{\floatpagefraction}{0.86}
 ---
 
 # Summary
@@ -79,7 +89,7 @@ Table: 2D 3PB comparison using the same mesh, material law, and Oliver T3 crack-
 
 ![3PB mesh and damage fields: (a) CPS3 mesh and support/load layout; (b) Abaqus UMAT final fully damaged elements; (c) MATLAB damage field at peak load; (d) MATLAB post-peak damage field. \label{fig:b1-compact}](images/fig_b1_compact.png){ width=100% }
 
-![3PB response and timing: (a) MATLAB and Abaqus load-CMOD response; (b) wall-clock comparison and MATLAB timing breakdown. \label{fig:b1-results}](images/fig_b1_results.png){ width=94% }
+![3PB response and timing: (a) MATLAB and Abaqus load-CMOD response; (b) wall-clock comparison and MATLAB timing breakdown. \label{fig:b1-results}](images/fig_b1_results.png){ width=98% }
 
 The Nooru-Mohamed benchmark checks mixed-mode 3D cracking in a double-edge-notched concrete panel under combined tension and shear [@nooru1992]. The same scalar CDM routine uses four-node linear tetrahedral (TET4) elements and Oliver crack-band scaling [@oliver1989]. The simulated damage bands initiate at the two notch tips and coalesce across the ligament, matching the qualitative experimental crack-path pattern.
 
@@ -87,15 +97,15 @@ The Nooru-Mohamed benchmark checks mixed-mode 3D cracking in a double-edge-notch
 
 This example is included because mixed-mode response is a common failure point for simplified fracture implementations. In the simulation, the crack-band direction changes as the principal strain field evolves, so the projected bandwidth is recomputed rather than assigned from a constant element size. The resulting localization band does not remain a straight mode-I notch extension; it bends across the ligament in the same qualitative direction as the reported experimental crack path.
 
-![Nooru-Mohamed damage evolution from first localization to coalescence in a 3-by-3 sequence. \label{fig:b2-damage-evolution}](images/nooru_damage_evolution_3x3.png){ width=96% }
+![Nooru-Mohamed damage evolution from first localization to coalescence in a 3-by-3 sequence. \label{fig:b2-damage-evolution}](images/nooru_damage_evolution_3x3.png){ width=100% }
 
 Brokenshire's torsion benchmark tests whether the same formulation can recover a curved 3D fracture surface in a notched plain concrete beam [@jefferson_torsion]. The model uses a prescribed twist, TET4 elements, and the same damage update. The computed band nucleates at the notch front and rotates toward the loaded corner, consistent with the experimentally recovered fracture surface.
 
-![Brokenshire torsion benchmark: geometry and experimental fractured specimen from Jefferson et al. [@jefferson_torsion]. \label{fig:b3-mesh}](images/fig_b3_mesh.png){ width=88% }
+![Brokenshire torsion benchmark: geometry and experimental fractured specimen from Jefferson et al. [@jefferson_torsion]. \label{fig:b3-mesh}](images/fig_b3_mesh.png){ width=96% }
 
 The torsion case is deliberately different from the 3PB validation: it contains out-of-plane cracking, a nonuniform stress state, and a visibly curved fracture surface. The 3D examples are intended as qualitative crack-path demonstrations; only the 2D 3PB case is quantitatively cross-checked against Abaqus.
 
-![Torsion damage evolution over the imposed twist history. \label{fig:b3-damage-evolution}](images/fig_b3_damage_evolution.png){ width=96% }
+![Torsion damage evolution over the imposed twist history. \label{fig:b3-damage-evolution}](images/fig_b3_damage_evolution.png){ width=100% }
 
 # Research impact statement
 
@@ -111,7 +121,7 @@ The repository contains MATLAB source code, Abaqus UMAT files, benchmark input d
 
 # AI usage disclosure
 
-OpenAI Codex/ChatGPT (GPT-5) was used to assist with manuscript wording, formatting, repository organization, and minor code and documentation cleanup. It was not used as an authority for scientific claims or numerical results. The authors made the core design decisions and reviewed, edited, and verified the equations, numerical results, figures, references, code changes, and final manuscript.
+Generative AI tools were used to assist with manuscript wording and formatting.
 
 # Acknowledgements
 
