@@ -38,7 +38,7 @@ header-includes:
 
 # Summary
 
-`FRACMATH` is an open-source MATLAB framework for finite-element simulation of crack-band-regularized continuum damage mechanics (CDM) in quasi-brittle materials. The name combines `FRAC`, for fracture, and `MATH`, for the MATLAB-based matrix mathematics used throughout the implementation; the final `H` is part of `MATH` rather than a separate acronym. The code uses a scalar isotropic damage variable, the modified von Mises equivalent strain [@deVree], exponential softening, and Oliver's direction-dependent projected crack-band length [@bazant_oh; @oliver1989]. It keeps the solver, plotting, and constitutive update inside MATLAB, with no MATLAB executable (MEX) files, compiled extensions, or separate build system.
+`FRACMATH` is an open-source MATLAB framework for finite-element simulation of crack-band-regularized continuum damage mechanics (CDM) in quasi-brittle materials. The code uses a scalar isotropic damage variable, the modified von Mises equivalent strain [@deVree], exponential softening, and Oliver's direction-dependent projected crack-band length [@bazant_oh; @oliver1989]. It keeps the solver, plotting, and constitutive update inside MATLAB, with no MATLAB executable (MEX) files, compiled extensions, or separate build system.
 
 The package includes a two-dimensional (2D) notched three-point bending (3PB) benchmark checked against Abaqus/Standard through an Oliver-matched user material subroutine (UMAT), plus two three-dimensional (3D) MATLAB demonstrations: the Nooru-Mohamed mixed-mode test and Brokenshire's notched beam torsion test. The repository stores source code, input decks, results, plotting scripts, and a theory manual at <https://github.com/jaymavani7/JOSS_FRACMATH> under the MIT license.
 
@@ -61,7 +61,7 @@ The material model follows standard scalar CDM, where damage variables and equiv
   \label{eq:stress}
 \end{equation}
 
-where $\omega\in[0,1]$ is the damage variable. A history variable stores the maximum equivalent strain so damage cannot heal. Exponential softening is scaled element by element so the dissipated fracture energy matches $G_F$ after crack-band regularization [@bazant_oh]. Instead of using a fixed mesh length, `FRACMATH` computes Oliver's projected characteristic length from the element geometry and the current maximum-principal-strain direction [@oliver1989]. For a three-node triangular finite element (T3),
+where $\omega\in[0,1]$ is the damage variable. A history variable stores the maximum equivalent strain so damage cannot heal. Exponential softening is scaled element by element so the dissipated fracture energy matches $G_F$ after crack-band regularization [@bazant_oh]. Instead of using a fixed mesh length, `FRACMATH` computes Oliver's projected characteristic length from the element geometry and the current maximum-principal-strain direction [@oliver1989]. For a three-node triangular finite element (T3, a linear triangle with three corner nodes),
 
 \begin{equation}
   h(\mathbf{n}) =
@@ -98,7 +98,7 @@ Table: 2D 3PB comparison using the same mesh, material law, and Oliver T3 crack-
 
 The Nooru-Mohamed benchmark checks mixed-mode 3D cracking in a double-edge-notched concrete panel under combined tension and shear [@nooru1992]. The same scalar CDM routine uses four-node linear tetrahedral (TET4) elements and Oliver crack-band scaling [@oliver1989]. The simulated damage bands initiate at the two notch tips and coalesce across the ligament, matching the qualitative experimental crack-path pattern.
 
-![Nooru-Mohamed mixed-mode benchmark: (a) boundary conditions; (b) 3D mesh; (c) experimental crack path from Nooru-Mohamed [@nooru1992]. \label{fig:b2-mesh}](images/fig_b2_mesh.png){ width=100% }
+![Nooru-Mohamed mixed-mode benchmark: (a) boundary conditions; (b) 3D mesh; (c) experimental crack path from the OOFEM gallery [@oofem_nooru_gallery]. \label{fig:b2-mesh}](images/fig_b2_mesh.png){ width=100% }
 
 This example is included because mixed-mode response is a common failure point for simplified fracture implementations. In the simulation, the crack-band direction changes as the principal strain field evolves, so the projected bandwidth is recomputed rather than assigned from a constant element size. The resulting localization band does not remain a straight mode-I notch extension; it bends across the ligament in the same qualitative direction as the reported experimental crack path.
 
@@ -130,6 +130,6 @@ Generative AI tools were used to assist with manuscript wording and formatting. 
 
 # Acknowledgements
 
-The authors acknowledge support from the National Aeronautics and Space Administration (NASA) and the New Mexico Space Grant Consortium under grant 80NSSC22M0044, and from the New Mexico Department of Finance and Administration under grant ZI5044-MG25-109. The opinions and conclusions are those of the authors and do not necessarily reflect the views of the sponsors.
+The authors acknowledge support from the National Aeronautics and Space Administration (NASA), and the New Mexico Space Grant Consortium under grant 80NSSC22M0044, and from the New Mexico Department of Finance and Administration under grant ZI5044-MG25-109. The opinions and conclusions are those of the authors and do not necessarily reflect the views of the sponsors.
 
 # References

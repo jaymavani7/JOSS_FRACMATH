@@ -157,31 +157,23 @@ def grid(
 
 def nooru_mesh_layout(output: str) -> None:
     width = 1650
-    margin = 34
-    gap = 42
-    panel_w = (width - 2 * margin - gap) // 2
-    panel_h = 650
+    margin = 30
+    gap = 24
+    panel_w = (width - 2 * margin - 2 * gap) // 3
+    panel_h = 500
 
-    bc = fit(load("nooru_BC_2D.png"), panel_w, 345)
+    bc = fit(load("nooru_BC_2D.png"), panel_w, panel_h)
     mesh = fit(load("nooru_mesh_3D.png"), panel_w, panel_h)
-
-    crack = fit(crop_fraction(load("Exp_noor.png"), (0.0, 0.08, 1.0, 0.86)), panel_w, 265)
+    crack = fit(load("Exp_noor.png"), panel_w, panel_h)
 
     height = 2 * margin + panel_h
     canvas = Image.new("RGB", (width, height), WHITE)
 
-    x = margin
-    y = margin
-    canvas.paste(bc, (x + (panel_w - bc.width) // 2, y))
-    crack_x = x + (panel_w - crack.width) // 2
-    crack_y = y + panel_h - crack.height
-    canvas.paste(crack, (crack_x, crack_y))
-    label_panel(canvas, (x + 10, y + 10), "(a)")
-    label_panel(canvas, (crack_x + 10, crack_y + 10), "(c)")
-
-    x = margin + panel_w + gap
-    canvas.paste(mesh, (x + (panel_w - mesh.width) // 2, y + (panel_h - mesh.height) // 2))
-    label_panel(canvas, (x + 10, y + 10), "(b)")
+    for idx, (im, label) in enumerate([(bc, "(a)"), (mesh, "(b)"), (crack, "(c)")]):
+        x = margin + idx * (panel_w + gap)
+        y = margin + (panel_h - im.height) // 2
+        canvas.paste(im, (x + (panel_w - im.width) // 2, y))
+        label_panel(canvas, (x + 10, margin + 10), label)
     canvas.save(IMG / output, optimize=True)
 
 def three_pb_layout(output: str) -> None:
