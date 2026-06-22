@@ -32,6 +32,10 @@ header-includes:
   - \renewcommand{\bottomfraction}{0.82}
   - \renewcommand{\textfraction}{0.06}
   - \renewcommand{\floatpagefraction}{0.86}
+  - \setcounter{topnumber}{5}
+  - \setcounter{bottomnumber}{5}
+  - \setcounter{totalnumber}{8}
+  - \makeatletter\def\fps@figure{!htbp}\makeatother
   - \setlength{\linenumbersep}{2pt}
   - \renewcommand\linenumberfont{\normalfont\tiny}
 ---
@@ -81,8 +85,6 @@ For the Abaqus comparison, `FRACMATH` includes the input deck, the Fortran UMAT,
 
 The main quantitative benchmark is the Grégoire notched 3PB beam [@gregoire2013], modeled with the same refined mesh, material constants, loading, scalar damage law, and Oliver crack-band formula in MATLAB and Abaqus. The 2D mesh uses Abaqus CPS3 elements, where CPS3 denotes a three-node plane-stress triangular element. MATLAB predicts a peak load of 3.63982 kN at CMOD 0.022811 mm; Abaqus predicts 3.60913 kN at CMOD 0.022485 mm. Both simulations localize damage upward from the notch, which is the expected opening-mode (mode-I) crack path for this geometry [@gregoire2013]. The Abaqus UMAT independently evaluates the same damage law and Oliver bandwidth inside a commercial finite-element environment [@abaqus; @oliver1989].
 
-The stored timing logs for this benchmark run report MATLAB R2024a using one thread and Abaqus/Standard 2023 using four threads. The MATLAB solver wall-clock time was 547.58 s, while the Abaqus submit-to-completion time was 1996.25 s. MATLAB time was dominated by stiffness assembly, not by the sparse solve. The timing should not be read as a universal speed claim, because solver settings, output requests, hardware, and Abaqus licensing can all change wall-clock time.
-
 | Quantity | MATLAB | Abaqus + UMAT |
 |---|---:|---:|
 | Peak load (N) | 3639.82 | 3609.13 |
@@ -94,15 +96,17 @@ Table: 2D 3PB comparison using the same mesh, material law, and Oliver T3 crack-
 
 ![3PB mesh and damage fields: (a) CPS3 mesh and support/load layout; (b) Abaqus UMAT final fully damaged elements; (c) MATLAB damage field at peak load; (d) MATLAB post-peak damage field. \label{fig:b1-compact}](images/fig_b1_compact.png){ width=100% }
 
+The stored timing logs for this benchmark run report MATLAB R2024a using one thread and Abaqus/Standard 2023 using four threads. The MATLAB solver wall-clock time was 547.58 s, while the Abaqus submit-to-completion time was 1996.25 s. MATLAB time was dominated by stiffness assembly, not by the sparse solve. The timing should not be read as a universal speed claim, because solver settings, output requests, hardware, and Abaqus licensing can all change wall-clock time.
+
 ![3PB response and timing: (a) MATLAB and Abaqus load-CMOD response; (b) wall-clock comparison; (c) MATLAB timing breakdown. \label{fig:b1-results}](images/fig_b1_results.png){ width=98% }
 
 The Nooru-Mohamed benchmark checks mixed-mode 3D cracking in a double-edge-notched concrete panel under combined tension and shear [@nooru1992]. The same scalar CDM routine uses four-node linear tetrahedral (TET4) elements and Oliver crack-band scaling [@oliver1989]. The simulated damage bands initiate at the two notch tips and coalesce across the ligament, matching the qualitative experimental crack-path pattern.
 
 ![Nooru-Mohamed mixed-mode benchmark: (a) boundary conditions; (b) 3D mesh; (c) experimental crack path from the OOFEM gallery [@oofem_nooru_gallery]. \label{fig:b2-mesh}](images/fig_b2_mesh.png){ width=100% }
 
-This example is included because mixed-mode response is a common failure point for simplified fracture implementations. In the simulation, the crack-band direction changes as the principal strain field evolves, so the projected bandwidth is recomputed rather than assigned from a constant element size. The resulting localization band does not remain a straight mode-I notch extension; it bends across the ligament in the same qualitative direction as the reported experimental crack path.
-
 ![Nooru-Mohamed damage evolution from first localization to coalescence in a 3-by-3 sequence. \label{fig:b2-damage-evolution}](images/nooru_damage_evolution_3x3.png){ width=100% }
+
+This example is included because mixed-mode response is a common failure point for simplified fracture implementations. In the simulation, the crack-band direction changes as the principal strain field evolves, so the projected bandwidth is recomputed rather than assigned from a constant element size. The resulting localization band does not remain a straight mode-I notch extension; it bends across the ligament in the same qualitative direction as the reported experimental crack path.
 
 Brokenshire's torsion benchmark tests whether the same formulation can recover a curved 3D fracture surface in a notched plain concrete beam [@jefferson_torsion]. The model uses a prescribed twist, TET4 elements, and the same damage update. The computed band nucleates at the notch front and rotates toward the loaded corner, consistent with the experimentally recovered fracture surface.
 
