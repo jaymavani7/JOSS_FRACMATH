@@ -19,7 +19,7 @@ authors:
 affiliations:
   - name: Gerald May Department of Civil, Construction, and Environmental Engineering, University of New Mexico, Albuquerque, NM, USA
     index: 1
-date: 21 June 2026
+date: 2026-06-22
 bibliography: paper.bib
 header-includes:
   - \setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
@@ -121,7 +121,7 @@ The repository contains MATLAB source code, Abaqus UMAT files, benchmark input d
 
 # AI usage disclosure
 
-Generative AI tools were used to assist with manuscript wording and formatting.
+Generative AI tools were used to assist with manuscript wording and formatting. The scientific claims, equations, code, numerical results, figures, and references are the responsibility of the authors.
 
 # Acknowledgements
 
