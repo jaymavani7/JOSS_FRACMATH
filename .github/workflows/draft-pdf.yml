@@ -1,0 +1,48 @@
+name: Draft JOSS PDF
+
+on:
+  push:
+    paths:
+      - 'paper/**'
+      - '.github/workflows/draft-pdf.yml'
+  pull_request:
+    paths:
+      - 'paper/**'
+      - '.github/workflows/draft-pdf.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  paper:
+    runs-on: ubuntu-latest
+    name: Build JOSS Draft
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build draft PDF
+        uses: openjournals/openjournals-draft-action@master
+        with:
+          journal: joss
+          paper-path: paper/paper.md
+
+      - name: Upload draft PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: joss-paper
+          path: paper/paper.pdf
+
+      - name: Commit draft PDF
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f paper/paper.pdf
+          if git diff --cached --quiet; then
+            echo "No PDF changes to commit."
+          else
+            git commit -m "Update JOSS draft PDF [skip ci]"
+            git push
+          fi

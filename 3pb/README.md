@@ -1,6 +1,6 @@
-﻿# 2D three-point bending benchmark
+# 2D three-point bending benchmark
 
-This folder contains the main 2D notched three-point bending validation case for the FRACMAT paper.
+This folder contains the main 2D notched three-point bending validation case for the FRACMATH paper.
 
 The benchmark compares:
 

@@ -6,7 +6,7 @@ This folder contains the main MATLAB workflow for the 3D Nooru-Mohamed benchmark
 
 | File | Purpose |
 | --- | --- |
-| `damage_static_NR_vectorized_LIVE_damage_different_colours.m` | Main vectorized 3D CDM damage solver |
+| `damage_static.m` | Main vectorized 3D CDM damage solver |
 | `visulizaiton.m` | Mesh and boundary-condition visualization |
 | `Job-1_nodes.txt` | Node coordinates |
 | `Job-1_elements.txt` | Tetrahedral element connectivity |
@@ -45,7 +45,7 @@ opts.save_show_mesh = true;
 opts.damage_colormap = 'turbo';
 opts.damage_clim_mode = 'visible';
 opts.bandwidth_method = 'oliver';
-damage_static_NR_vectorized_LIVE_damage_different_colours('Job-1', opts);
+damage_static('Job-1', opts);
 ```
 
 ## Outputs

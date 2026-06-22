@@ -1,22 +1,3 @@
-# -*- coding: utf-8 -*-
-#!/usr/bin/env python
-"""
-make_3pb_inp.py
-===============
-Build the Gregoire notched 3PB CDM/UMAT model and WRITE THE .inp ONLY.
-No job submission, no UMAT compile, no ODB, no plotting.
-
-Run:
-    abaqus cae noGUI=make_3pb_inp.py
-
-Output:
-    Gregoire_3PB/Gregoire_3PB.inp
-
-The .inp contains *USER MATERIAL + *DEPVAR, node sets (Support_Left,
-Support_Right, Load_Nodes, CMOD1, CMOD2), BCs, the static step, and
-SDV field + RF2/U1 history requests. To run later:
-    abaqus job=Gregoire_3PB input=Gregoire_3PB user=cdm_umat_2d.for cpus=4
-"""
 
 from __future__ import print_function
 import os
@@ -32,13 +13,8 @@ except Exception as e:
     print('Import error: %s' % str(e))
     sys.exit(1)
 
-
-# =====================================================================
-# CONFIG  (identical to the full workflow)
-# =====================================================================
 MODEL = 'Gregoire_3PB'
 
-# Geometry [mm]
 D        = 100.0
 S        = 2.5 * D
 OVERHANG = 0.5 * D
@@ -50,36 +26,26 @@ XC       = L / 2.0
 XL_NOTCH = XC - WN / 2.0
 XR_NOTCH = XC + WN / 2.0
 
-# Mesh
 ELEM_SIZE_GLOBAL = D / 16.0
 ELEM_SIZE_REFINE = ELEM_SIZE_GLOBAL / 5.0
 REFINE_W         = 0.5 * D
 REFINE_H         = D
 
-# UMAT material constants: E, nu, ft, GF, fc/ft
 E_C, NU_C, FT, GF, FCFT = 37000.0, 0.20, 3.5, 0.090, 10.0
 
-# Loading
 U_FINAL = -0.2
 N_INC   = 1000
 
-# Field/history
 FIELD_VARS = ('SDV',)
 FIELD_FREQ = 10
 
-
-# =====================================================================
-# UTILITIES
-# =====================================================================
 def die(msg):
     print('ERROR: ' + str(msg))
     sys.exit(1)
 
-
 def ensure_dir(path):
     if not os.path.isdir(path):
         os.makedirs(path)
-
 
 def pick_single_nearest(part, xt, yt):
     best, bd = None, 1.0e99
@@ -91,7 +57,6 @@ def pick_single_nearest(part, xt, yt):
     if best is None:
         die('No node near x=%g y=%g' % (xt, yt))
     return part.nodes.sequenceFromLabels(labels=(best.label,))
-
 
 def pick_n_nearest_top(part, xt, y_top, n_keep):
     tol = 1.0e-3 * abs(y_top) + 1.0e-6
@@ -106,10 +71,6 @@ def pick_n_nearest_top(part, xt, y_top, n_keep):
     labels = [lbl for _, lbl in cands[:max(1, n_keep)]]
     return part.nodes.sequenceFromLabels(labels=tuple(labels))
 
-
-# =====================================================================
-# BUILD MODEL
-# =====================================================================
 def build_model():
     print('\n==== Build model ====')
     if MODEL in mdb.models.keys():
@@ -200,10 +161,6 @@ def build_model():
     print('Build complete.')
     return m
 
-
-# =====================================================================
-# WRITE INP ONLY  (no submit)
-# =====================================================================
 def write_inp(case_dir):
     print('\n==== Write .inp (no run) ====')
     if MODEL in mdb.jobs.keys():
@@ -222,10 +179,6 @@ def write_inp(case_dir):
     print('Wrote: %s' % inp_path)
     return inp_path
 
-
-# =====================================================================
-# MAIN
-# =====================================================================
 def main():
     base = os.path.abspath(os.getcwd())
     case_dir = os.path.join(base, MODEL)
@@ -240,7 +193,6 @@ def main():
     print('Run later with:')
     print('  abaqus job=%s input=%s user=cdm_umat_2d.for cpus=4'
           % (MODEL, MODEL))
-
 
 if __name__ == '__main__':
     main()

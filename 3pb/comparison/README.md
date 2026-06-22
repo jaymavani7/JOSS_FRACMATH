@@ -1,25 +1,16 @@
-﻿# 3PB comparison figures
+# 3PB comparison figures
 
-This folder contains the scripts and stored outputs used to compare the MATLAB and Abaqus/UMAT 3PB simulations.
+This folder contains the regenerated MATLAB and Abaqus/UMAT 3PB comparison figures used in the JOSS paper.
 
 ## Commands
 
 Run from this folder:
 
-```text
-3pb/comparison
-```
-
-Commands:
-
 ```bash
 python plot_comparison.py
-python plot_image_comparison.py
 ```
 
 ## Inputs
-
-The scripts read the stored result files from:
 
 - `../matlab/Gregoire_3PB/results/`
 - `../abaqus/Gregoire_3PB/results/`
@@ -28,21 +19,18 @@ The scripts read the stored result files from:
 
 | File | Purpose |
 | --- | --- |
-| `comparison_summary.md` | Markdown and LaTeX summary table |
-| `comparison_load_cmod.png` | MATLAB-vs-Abaqus load-CMOD comparison |
-| `comparison_load_cmod.pdf` | PDF version of the load-CMOD comparison |
-| `runtime_comparison.png` | Runtime comparison figure |
-| `runtime_comparison.pdf` | PDF version of the runtime comparison |
-| `performance_breakdown.png` | Combined performance summary figure |
-| `performance_breakdown.pdf` | PDF version of the performance summary |
-| `time_comparison_bar.png` | Bar chart comparing time |
+| `comparison_summary.md` | Stored MATLAB--Abaqus summary values |
+| `comparison_load_cmod.png` | Load-CMOD comparison |
+| `runtime_comparison.png` | Runtime comparison |
+| `performance_breakdown.png` | Combined performance breakdown |
+| `comparison_load_cmod_panels.png` | Side-by-side response and timing panels |
 
 ## Stored comparison values
 
-The stored summary reports:
-
-- MATLAB peak load: 3.90 kN.
-- Abaqus + UMAT peak load: 3.84 kN.
-- CMOD at peak: approximately 0.026 mm for both solvers.
-- MATLAB wall-clock time: 97.18 s.
-- Abaqus wall-clock time: 1336.00 s.
+- MATLAB peak load: 3.64 kN.
+- Abaqus + UMAT peak load: 3.61 kN.
+- CMOD at peak: MATLAB 0.022811 mm; Abaqus 0.022485 mm.
+- MATLAB solver wall-clock time: 547.58 s.
+- Abaqus submit-to-done wall-clock time: 1996.25 s.
+- Abaqus internal `.msg/.dat` wall-clock time: 1968.00 s.
+- Abaqus Load-CMOD rows: 10001.

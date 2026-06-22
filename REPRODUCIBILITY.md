@@ -7,8 +7,8 @@ Run each workflow from the folder listed in that section. The scripts use relati
 ## 0. Clone and prepare the repository
 
 ```bash
-git clone https://github.com/jaymavani7/JOSS_FRACMATH.git
-cd JOSS_FRACMATH
+git clone https://github.com/Jaykumar9033/FRACMATH.git
+cd FRACMATH
 git lfs install
 git lfs pull
 python -m pip install -r requirements.txt
@@ -20,6 +20,15 @@ Required external software:
 - Abaqus/CAE and Abaqus/Standard for the Abaqus validation workflow.
 - A Fortran compiler configured with Abaqus for the UMAT.
 - Python with `numpy` and `matplotlib` for plotting.
+
+Optional fast smoke check from the repository root:
+
+```matlab
+addpath('tests')
+run_smoke_checks
+```
+
+This check verifies that key paper assets, benchmark input files, generated result files, and documentation files are present and readable. It is not a substitute for the full workflows below.
 
 ## 1. Reproduce the 2D 3PB MATLAB simulation
 
@@ -161,7 +170,7 @@ opts.save_show_mesh = true;
 opts.damage_colormap = 'turbo';
 opts.damage_clim_mode = 'visible';
 opts.bandwidth_method = 'oliver';
-damage_static_NR_vectorized_LIVE_damage_different_colours('Job-1', opts);
+damage_static('Job-1', opts);
 ```
 
 The solver reads files such as:
@@ -183,7 +192,6 @@ Noor mohammad/Mesh/out_NR_vectorized_LIVE_damage_mesh
 Additional stored snapshots are in:
 
 ```text
-Noor mohammad/out_ultra
 ```
 
 ## 5. Reproduce the 3D torsion benchmark
@@ -197,7 +205,7 @@ Torsion/working
 MATLAB command:
 
 ```matlab
-run_torsion_stress_strain_static_fast_modvm_multiview_video
+run_torsion
 ```
 
 The solver reads:

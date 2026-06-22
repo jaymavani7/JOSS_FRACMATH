@@ -5,7 +5,7 @@ This folder contains the main MATLAB workflow for the 3D torsion benchmark.
 ## Main file to run
 
 ```matlab
-run_torsion_stress_strain_static_fast_modvm_multiview_video
+run_torsion
 ```
 
 Run it from this folder:
@@ -21,7 +21,7 @@ Torsion/working
 3. Run:
 
    ```matlab
-   run_torsion_stress_strain_static_fast_modvm_multiview_video
+   run_torsion
    ```
 
 4. Inspect:

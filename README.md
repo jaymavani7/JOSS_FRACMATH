@@ -1,12 +1,12 @@
-﻿# FRACMAT paper repository
+# FRACMATH paper repository
 
 This repository contains the code, input data, generated results, and documentation for the JOSS paper:
 
-**FRACMAT: A vectorized MATLAB framework for continuum damage mechanics with crack band regularization**
+**FRACMATH: A vectorized MATLAB framework for continuum damage mechanics with crack-band regularization**
 
 Authors: Jaykumar Mavani and Madura Pathirage, Department of Civil, Construction, and Environmental Engineering, University of New Mexico.
 
-The repository name is `JOSS_FRACMATH`, but the software described in the paper is `FRACMAT`.
+The GitHub repository is `Jaykumar9033/FRACMATH`, and the software described in the paper is `FRACMATH`.
 
 ## What is included
 
@@ -16,8 +16,12 @@ The repository name is `JOSS_FRACMATH`, but the software described in the paper 
 | `Noor mohammad/` | 3D Nooru-Mohamed mesh, MATLAB solver, and saved damage outputs | 3D mixed-mode validation case |
 | `Torsion/` | 3D torsion mesh, MATLAB solver, visualization scripts, and outputs | 3D notched beam torsion validation case |
 | `doc/` | Theory manual in LaTeX and PDF form | Formulation, derivations, and solver notes |
+| `paper/` | JOSS manuscript, bibliography, and figures | Submission paper package |
+| `tests/` | Lightweight MATLAB smoke checks | Fast repository completeness check |
 | `MANIFEST.md` | File map for code, inputs, and generated outputs | Helps reviewers locate each item |
 | `REPRODUCIBILITY.md` | One-by-one analysis instructions | Main reviewer run guide |
+| `CONTRIBUTING.md` | Issue, support, and contribution guidance | Open-source workflow guidance |
+| `CHANGELOG.md` | Version and submission-preparation notes | Release history |
 | `CITATION.cff` | Citation metadata | Software citation |
 | `requirements.txt` | Python plotting dependencies | Used by comparison and plotting scripts |
 
@@ -31,8 +35,8 @@ Large Abaqus output database files (`*.odb`) are tracked with Git LFS.
 | 2D 3PB Abaqus + UMAT | `3pb/abaqus/` | `abaqus cae noGUI=run_3pb_abaqus_OLIVER_T3_FAST.py` |
 | 2D 3PB comparison plots | `3pb/comparison/` | `python plot_comparison.py` and `python plot_image_comparison.py` |
 | 3D Nooru-Mohamed mesh view | `Noor mohammad/Mesh/` | `visulizaiton` in MATLAB |
-| 3D Nooru-Mohamed damage solve | `Noor mohammad/Mesh/` | `damage_static_NR_vectorized_LIVE_damage_different_colours('Job-1', opts)` in MATLAB |
-| 3D torsion damage solve | `Torsion/working/` | `run_torsion_stress_strain_static_fast_modvm_multiview_video` in MATLAB |
+| 3D Nooru-Mohamed damage solve | `Noor mohammad/Mesh/` | `damage_static('Job-1', opts)` in MATLAB |
+| 3D torsion damage solve | `Torsion/working/` | `run_torsion` in MATLAB |
 | Theory manual | `doc/` | `theory_manual.pdf`, or build `theory_manual.tex` with LaTeX |
 
 Run scripts from the folders listed above. Several scripts use relative paths to find mesh files, boundary-condition files, and result folders.
@@ -62,6 +66,13 @@ Run scripts from the folders listed above. Several scripts use relative paths to
 
 5. Read `REPRODUCIBILITY.md` for the complete step-by-step run order.
 
+6. Optionally run the lightweight MATLAB smoke check from the repository root.
+
+   ```matlab
+   addpath('tests')
+   run_smoke_checks
+   ```
+
 ## Analysis overview
 
 ### 1. 2D notched three-point bending benchmark
@@ -81,7 +92,6 @@ The Nooru-Mohamed case demonstrates the 3D tetrahedral MATLAB damage solver unde
 Important folders:
 
 - `Noor mohammad/Mesh/`: main mesh, solver, visualization script, and primary output folder.
-- `Noor mohammad/out_ultra/`: additional saved damage snapshots and curve data.
 
 ### 3. 3D torsion benchmark
 

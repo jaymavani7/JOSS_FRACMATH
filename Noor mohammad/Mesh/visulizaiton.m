@@ -1,28 +1,5 @@
 function plot_nooru_mesh_BC
-% PLOT_NOORU_MESH_BC  Publication-quality mesh + BC figures for the
-% Nooru-Mohamed double-edge-notched specimen (3D TET4 mesh).
-%
-% Reads the Job-1 text files, extracts the exterior surface of the
-% tetrahedral mesh, colours the four grip/boundary node sets, and renders:
-%
-%   Fig.1 -> oblique 3D view
-%   Fig.2 -> clean 2D front-view BC schematic WITHOUT dimension labels
-%
-% Outputs:
-%   nooru_mesh_3D.pdf
-%   nooru_mesh_3D.png
-%   nooru_BC_2D_no_dimensions.pdf
-%   nooru_BC_2D_no_dimensions.png
-%
-% Connectivity assumed: [elemID n1 n2 n3 n4]
-% Nodes assumed:        [nodeID x y z]
-%
-% Just run:
-%   >> plot_nooru_mesh_BC
 
-% ======================================================================
-% CONFIG
-% ======================================================================
 F.nodes  = 'Job-1_nodes.txt';
 F.elems  = 'Job-1_elements.txt';
 F.top    = 'Job-1_top_nodes.txt';
@@ -30,22 +7,18 @@ F.bottom = 'Job-1_bottom_nodes.txt';
 F.left   = 'Job-1_left_nodes.txt';
 F.right  = 'Job-1_right_nodes.txt';
 
-C.bulk   = [0.86 0.86 0.89];     % bulk surface fill
-C.edge   = [0.42 0.42 0.48];     % mesh edge colour
-C.top    = [0.84 0.15 0.16];     % red
-C.bottom = [0.12 0.47 0.71];     % blue
-C.left   = [0.17 0.63 0.17];     % green
-C.right  = [0.58 0.40 0.74];     % purple
+C.bulk   = [0.86 0.86 0.89];
+C.edge   = [0.42 0.42 0.48];
+C.top    = [0.84 0.15 0.16];
+C.bottom = [0.12 0.47 0.71];
+C.left   = [0.17 0.63 0.17];
+C.right  = [0.58 0.40 0.74];
 
-view3D     = [-58 16];           % [azimuth elevation]
-exportFigs = true;               % save figures
-% ======================================================================
+view3D     = [-58 16];
+exportFigs = true;
 
-%% ---------------------------------------------------------------------
-% READ MESH
-% ----------------------------------------------------------------------
-Nd = readNumeric(F.nodes);        % [id x y z]
-El = readNumeric(F.elems);        % [id n1 n2 n3 n4]
+Nd = readNumeric(F.nodes);
+El = readNumeric(F.elems);
 
 nodeID = Nd(:,1);
 V      = Nd(:,2:4);
@@ -58,9 +31,6 @@ id2row(nodeID) = 1:numel(nodeID);
 T = id2row(conn);
 nNode = size(V,1);
 
-%% ---------------------------------------------------------------------
-% EXTERIOR SURFACE OF TETRAHEDRAL MESH
-% ----------------------------------------------------------------------
 Fall = [T(:,[1 2 3]); ...
         T(:,[1 2 4]); ...
         T(:,[1 3 4]); ...
@@ -70,11 +40,8 @@ Fall = [T(:,[1 2 3]); ...
 [uF,~,ic] = unique(sF,'rows');
 cnt  = accumarray(ic,1);
 
-surf = uF(cnt==1,:);              % exterior triangular faces
+surf = uF(cnt==1,:);
 
-%% ---------------------------------------------------------------------
-% GRIP NODE SETS
-% ----------------------------------------------------------------------
 sets  = {'top','bottom','left','right'};
 cols  = {C.top,C.bottom,C.left,C.right};
 inSet = false(nNode,numel(sets));
@@ -93,9 +60,6 @@ end
 
 bulkFace = ~any(faceInSet,2);
 
-%% ---------------------------------------------------------------------
-% GEOMETRY LIMITS
-% ----------------------------------------------------------------------
 xr = [min(V(:,1)) max(V(:,1))];
 yr = [min(V(:,2)) max(V(:,2))];
 zr = [min(V(:,3)) max(V(:,3))];
@@ -103,10 +67,7 @@ zr = [min(V(:,3)) max(V(:,3))];
 Lspec = xr(2) - xr(1);
 Hspec = yr(2) - yr(1);
 
-%% =====================================================================
-% FIGURE 1: 3D VIEW
-% ======================================================================
-Vp = V(:,[1 3 2]);                % plot as x, z, y
+Vp = V(:,[1 3 2]);
 
 f1 = figure('Color','w','Units','centimeters','Position',[2 2 17 18]);
 ax1 = axes(f1);
@@ -147,11 +108,9 @@ zlabel(ax1,'y (mm)');
 
 set(ax1,'FontName','Helvetica','FontSize',11,'LineWidth',0.8);
 
-% 3D load arrows
 zf = zr(2);
 Larrow3D = 0.16*Hspec;
 
-% Top tension arrows
 xa = linspace(xr(1),xr(2),6);
 
 quiver3(ax1, ...
@@ -173,7 +132,6 @@ text(ax1, ...
     'FontSize',11, ...
     'FontWeight','bold');
 
-% Left shear arrows
 ya = linspace(0,yr(2),6);
 
 quiver3(ax1, ...
@@ -196,7 +154,6 @@ text(ax1, ...
     'FontSize',11, ...
     'FontWeight','bold');
 
-% Legend
 hL = gobjects(1,4);
 
 for k = 1:numel(sets)
@@ -216,9 +173,6 @@ title(ax1, ...
     'FontWeight','bold', ...
     'FontSize',12);
 
-%% =====================================================================
-% FIGURE 2: 2D FRONT VIEW WITHOUT DIMENSIONS
-% ======================================================================
 z = V(:,3);
 tol = 1e-6;
 isZ0 = abs(z) < tol;
@@ -238,20 +192,16 @@ patch(ax2, ...
     'EdgeColor',[0.55 0.55 0.6], ...
     'LineWidth',0.18);
 
-% Highlight grip edges
-drawGripEdge(ax2, V, front, inSet(:,1), C.top,    2.6); % top
-drawGripEdge(ax2, V, front, inSet(:,2), C.bottom, 2.6); % bottom
-drawGripEdge(ax2, V, front, inSet(:,3), C.left,   2.6); % left
-drawGripEdge(ax2, V, front, inSet(:,4), C.right,  2.6); % right
+drawGripEdge(ax2, V, front, inSet(:,1), C.top,    2.6);
+drawGripEdge(ax2, V, front, inSet(:,2), C.bottom, 2.6);
+drawGripEdge(ax2, V, front, inSet(:,3), C.left,   2.6);
+drawGripEdge(ax2, V, front, inSet(:,4), C.right,  2.6);
 
-% Fixed supports
 hatchEdge(ax2, [xr(1) yr(1); xr(2) yr(1)], 'down',  C.bottom);
 hatchEdge(ax2, [xr(2) yr(1); xr(2) yr(1)+0.5*Hspec], 'right', C.right);
 
-% Load arrows
 La = 0.12*Hspec;
 
-% Top tension arrows
 xa = linspace(xr(1),xr(2),7);
 
 quiver(ax2, ...
@@ -272,7 +222,6 @@ text(ax2, ...
     'FontWeight','bold', ...
     'FontSize',11);
 
-% Left shear arrows
 ya = linspace(yr(1)+0.2*Hspec,yr(2),6);
 
 quiver(ax2, ...
@@ -294,7 +243,6 @@ text(ax2, ...
     'FontWeight','bold', ...
     'FontSize',11);
 
-% Notch labels only
 text(ax2, ...
     xr(1)+0.22*Lspec, yr(1)+0.11*Hspec, ...
     '\leftarrow notch', ...
@@ -314,7 +262,6 @@ text(ax2, ...
 
 axis(ax2,'equal');
 
-% Clean axis limits without dimension space
 xlim(ax2,[xr(1)-0.35*Lspec, xr(2)+0.25*Lspec]);
 ylim(ax2,[yr(1)-0.20*Hspec, yr(2)+0.40*Hspec]);
 
@@ -331,9 +278,6 @@ title(ax2, ...
     'FontWeight','bold', ...
     'FontSize',12);
 
-%% ---------------------------------------------------------------------
-% EXPORT
-% ----------------------------------------------------------------------
 if exportFigs
     exportgraphics(f1,'nooru_mesh_3D.pdf','ContentType','vector');
     exportgraphics(f1,'nooru_mesh_3D.png','Resolution',300);
@@ -358,12 +302,7 @@ fprintf('  z thickness = %.3f mm\n',zr(2)-zr(1));
 
 end
 
-% ======================================================================
-% HELPER FUNCTIONS
-% ======================================================================
-
 function A = readNumeric(fname)
-% Robust whitespace-delimited numeric read.
 
 if exist(fname,'file') ~= 2
     error('File not found: %s. Run from the folder containing the txt files.',fname);
@@ -378,9 +317,7 @@ end
 A = A(all(~isnan(A),2),:);
 end
 
-% ----------------------------------------------------------------------
 function drawGripEdge(ax, V, faces, nodeMask, col, lw)
-% Draw boundary edges of the front mesh whose endpoints are in a node set.
 
 E = [faces(:,[1 2]); ...
      faces(:,[2 3]); ...
@@ -401,9 +338,7 @@ line(ax, X, Y, ...
     'LineWidth',lw);
 end
 
-% ----------------------------------------------------------------------
 function hatchEdge(ax, seg, dir, col)
-% Simple fixed-support hatching along a segment.
 
 p1 = seg(1,:);
 p2 = seg(2,:);

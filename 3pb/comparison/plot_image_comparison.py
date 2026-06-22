@@ -1,16 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-plot_image_comparison.py
-========================
-Creates side-by-side comparison figures for MATLAB vs Abaqus:
-  comparison_damage_postpeak.png   -- post-peak crack geometry
-  comparison_damage_last_step.png  -- last-step crack geometry
-  comparison_damage_peak.png       -- peak-load crack (MATLAB only if Abaqus missing)
-  comparison_load_cmod_panels.png  -- Load-CMOD side-by-side individual plots
-
-Run:
-    python plot_image_comparison.py
-"""
 
 from __future__ import print_function
 import os
@@ -22,21 +9,17 @@ import matplotlib.image as mpimg
 import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
 
-# ── paths ─────────────────────────────────────────────────────────────────────
 BASE   = r"C:\Users\jmavani\OneDrive - University of New Mexico\Desktop\JOSS\3pb_2"
 MAT_R  = os.path.join(BASE, "matlab",  "Gregoire_3PB", "results")
 ABQ_R  = os.path.join(BASE, "abaqus",  "Gregoire_3PB", "results")
 OUT    = os.path.join(BASE, "comparison")
 os.makedirs(OUT, exist_ok=True)
 
-DPI = 200   # screen-quality for composited images (sources are 300 dpi)
+DPI = 200
 
-# ── helper ────────────────────────────────────────────────────────────────────
 def side_by_side(left_path, right_path, left_label, right_label,
                  title, out_name, subtitle=""):
-    """
-    Load two PNG images and arrange them side-by-side with labels.
-    """
+
     imgs = []
     for p in (left_path, right_path):
         if p and os.path.exists(p):
@@ -46,7 +29,6 @@ def side_by_side(left_path, right_path, left_label, right_label,
 
     fig = plt.figure(figsize=(18, 7), facecolor='white')
 
-    # ── super-title ──────────────────────────────────────────────────────────
     fig.text(0.5, 0.97, title,
              ha='center', va='top', fontsize=15, fontweight='bold', color='#222222')
     if subtitle:
@@ -55,7 +37,6 @@ def side_by_side(left_path, right_path, left_label, right_label,
 
     top_start = 0.88 if subtitle else 0.91
 
-    # ── left panel ───────────────────────────────────────────────────────────
     ax_l = fig.add_axes([0.01, 0.06, 0.47, top_start - 0.06])
     ax_l.axis('off')
     if imgs[0] is not None:
@@ -65,7 +46,6 @@ def side_by_side(left_path, right_path, left_label, right_label,
                   ha='center', va='center', fontsize=10, color='red',
                   transform=ax_l.transAxes)
 
-    # coloured label bar at the top of left panel
     bbox_l = ax_l.get_position()
     bar_l  = fig.add_axes([bbox_l.x0, top_start, bbox_l.width, 0.035])
     bar_l.set_facecolor('#0F4C81')
@@ -74,7 +54,6 @@ def side_by_side(left_path, right_path, left_label, right_label,
                ha='center', va='center', fontsize=12, fontweight='bold',
                color='white', transform=bar_l.transAxes)
 
-    # ── divider ──────────────────────────────────────────────────────────────
     fig.add_axes([0.487, 0.04, 0.003, top_start - 0.04 + 0.035]).set_visible(False)
     fig.lines.extend([
         plt.Line2D([0.488, 0.488], [0.04, top_start + 0.035],
@@ -82,7 +61,6 @@ def side_by_side(left_path, right_path, left_label, right_label,
                    color='#cccccc', linewidth=1.5)
     ])
 
-    # ── right panel ──────────────────────────────────────────────────────────
     ax_r = fig.add_axes([0.52, 0.06, 0.47, top_start - 0.06])
     ax_r.axis('off')
     if imgs[1] is not None:
@@ -107,7 +85,6 @@ def side_by_side(left_path, right_path, left_label, right_label,
     plt.close(fig)
     print('  Saved: %s' % out_name)
 
-
 def read_csv2(path):
     rows = []
     with open(path, 'r') as f:
@@ -125,10 +102,6 @@ def read_csv2(path):
     arr = np.array(rows)
     return arr[:, 0], arr[:, 1]
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 1.  Damage post-peak
-# ─────────────────────────────────────────────────────────────────────────────
 print('Damage post-peak comparison ...')
 side_by_side(
     left_path   = os.path.join(MAT_R, 'fig_damage_postpeak.png'),
@@ -140,9 +113,6 @@ side_by_side(
     out_name    = 'comparison_damage_postpeak',
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 2.  Damage last step
-# ─────────────────────────────────────────────────────────────────────────────
 print('Damage last-step comparison ...')
 side_by_side(
     left_path   = os.path.join(MAT_R, 'fig_damage_last_step.png'),
@@ -154,9 +124,6 @@ side_by_side(
     out_name    = 'comparison_damage_last_step',
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 3.  Damage peak  (Abaqus peak may not exist; show MATLAB alone if missing)
-# ─────────────────────────────────────────────────────────────────────────────
 print('Damage peak comparison ...')
 abq_peak = os.path.join(ABQ_R, 'damage_peak.png')
 side_by_side(
@@ -169,9 +136,6 @@ side_by_side(
     out_name    = 'comparison_damage_peak',
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 4.  Individual Load-CMOD panels (re-plotted clean, NOT composited)
-# ─────────────────────────────────────────────────────────────────────────────
 print('Load-CMOD panel comparison ...')
 mat_csv = os.path.join(MAT_R, 'matlab_load_cmod.csv')
 abq_csv = os.path.join(ABQ_R, 'abaqus_load_cmod.csv')
@@ -232,13 +196,10 @@ fig.savefig(os.path.join(OUT, 'comparison_load_cmod_panels.pdf'),
 plt.close(fig)
 print('  Saved: comparison_load_cmod_panels')
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 5.  Mesh comparison
-# ─────────────────────────────────────────────────────────────────────────────
 print('Mesh comparison ...')
 side_by_side(
     left_path   = os.path.join(MAT_R, 'fig_mesh.png'),
-    right_path  = None,   # Abaqus mesh figure not separately saved
+    right_path  = None,
     left_label  = 'MATLAB — FRACMATH',
     right_label = 'Abaqus — (same mesh, no standalone figure)',
     title       = 'Finite element mesh  (shared between both solvers)',

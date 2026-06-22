@@ -6,10 +6,11 @@ This report compares the computational results and performance of the three-poin
 
 | Quantity | MATLAB | Abaqus + UMAT | Ratio |
 | :--- | :---: | :---: | :---: |
-| **Peak load (kN)** | 3.90 | 3.84 | 1.017 |
-| **CMOD at peak (mm)** | 0.026 | 0.026 | 0.978 |
-| **Wall-clock time (s)** | 97.18 | 1336.00 | 0.073 |
-| **Total process time (s)** | 103.90 | 1356.20 | 0.077 |
+| **Peak load (kN)** | 3.64 | 3.61 | 1.009 |
+| **CMOD at peak (mm)** | 0.023 | 0.022 | 1.014 |
+| **Solver/submit wall-clock (s)** | 547.58 | 1996.25 | 0.274 |
+| **End-to-end / internal time (s)** | 590.54 | 1968.00 | 0.300 |
+| **Load-CMOD rows** | 10000 | 10001 | - |
 
 ## LaTeX Table Format
 ```latex
@@ -21,10 +22,10 @@ This report compares the computational results and performance of the three-poin
 \hline
 Quantity & MATLAB & Abaqus + UMAT & Ratio \\
 \hline
-Peak load (kN) & 3.90 & 3.84 & 1.017 \\
-CMOD at peak (mm) & 0.026 & 0.026 & 0.978 \\
-Wall-clock time (s) & 97.18 & 1336.00 & 0.073 \\
-Total process (s) & 103.90 & 1356.20 & 0.077 \\
+Peak load (kN) & 3.64 & 3.61 & 1.009 \\
+CMOD at peak (mm) & 0.023 & 0.022 & 1.014 \\
+Solver/submit wall-clock (s) & 547.58 & 1996.25 & 0.274 \\
+End-to-end / internal time (s) & 590.54 & 1968.00 & 0.300 \\
 \hline
 \end{tabular}
 \end{table}
@@ -33,3 +34,4 @@ Total process (s) & 103.90 & 1356.20 & 0.077 \\
 ## Visualizations
 - Combined bar and breakdown pie chart: [performance_breakdown.png](performance_breakdown.png)
 - Load vs CMOD comparison plot: [comparison_load_cmod.png](comparison_load_cmod.png)
+- Side-by-side damage/mesh panels: [comparison_damage_last_step.png](comparison_damage_last_step.png)

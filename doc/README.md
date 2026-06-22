@@ -1,6 +1,6 @@
-﻿# Theory manual
+# Theory manual
 
-This folder contains the theory manual for the FRACMAT formulation and solver implementation.
+This folder contains the theory manual for the FRACMATH formulation and solver implementation.
 
 ## Files
 

@@ -1,15 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-extract_peak_omega.py
-=====================
-Run with:  abaqus python extract_peak_omega.py
-
-Opens the ODB, finds the field-output frame NEAREST to the peak-load time
-(determined from abaqus_load_cmod.csv), and writes omega_peak.csv so that
-plot_results.py can draw the damage geometry at peak load.
-
-Also re-writes omega_postpeak.csv and omega_last.csv for consistency.
-"""
 from __future__ import print_function
 import os, sys, glob
 
@@ -20,7 +8,6 @@ except Exception as e:
     print('  abaqus python extract_peak_omega.py')
     sys.exit(1)
 
-# ── locate ODB ────────────────────────────────────────────────────────────────
 script_dir = os.path.abspath(os.path.dirname(sys.argv[0]) if sys.argv[0] else os.getcwd())
 odb_path   = None
 for cand in glob.glob(os.path.join(script_dir, '*.odb')):
@@ -36,7 +23,6 @@ for d in (res_dir, pd_dir):
     if not os.path.isdir(d):
         os.makedirs(d)
 
-# ── read load-CMOD csv to find peak time ─────────────────────────────────────
 lc_csv = os.path.join(res_dir, 'abaqus_load_cmod.csv')
 peak_load, peak_time_approx = -1e99, None
 if os.path.exists(lc_csv):
@@ -52,13 +38,13 @@ if os.path.exists(lc_csv):
             except Exception:
                 continue
     if rows:
-        # Find row with maximum load
+
         best = max(rows, key=lambda r: r[1])
         peak_cmod, peak_load = best
         peak_idx  = rows.index(best)
         print('Peak load from CSV: %.4f N  at CMOD=%.6f mm  (row %d)' %
               (peak_load, peak_cmod, peak_idx))
-        # Postpeak: first row where CMOD > 0.3
+
         pp_cmod = 0.3
         pp_idx  = peak_idx
         for i, (c, r) in enumerate(rows):
@@ -69,17 +55,15 @@ if os.path.exists(lc_csv):
 else:
     print('WARNING: %s not found; will use last frame for peak.' % lc_csv)
 
-# ── open ODB ──────────────────────────────────────────────────────────────────
 odb  = openOdb(path=odb_path, readOnly=True)
 step = odb.steps[list(odb.steps.keys())[-1]]
 nf   = len(step.frames)
 print('Step: %s   frames: %d' % (list(odb.steps.keys())[-1], nf))
 
-# Frame times
 frame_times = [float(step.frames[i].frameValue) for i in range(nf)]
 
 def nearest_frame(target_frac):
-    """Return frame index nearest to a fractional position [0,1] of total time."""
+
     t_max = frame_times[-1] if frame_times else 1.0
     target_t = target_frac * t_max
     best_i, best_d = 0, 1e99
@@ -89,7 +73,6 @@ def nearest_frame(target_frac):
             best_d, best_i = d, i
     return best_i
 
-# If we have CSV rows, find peak frame by matching fractional position
 if rows:
     n_rows   = len(rows)
     pk_frac  = float(peak_idx) / max(n_rows - 1, 1)
@@ -106,7 +89,6 @@ print('Field-frame indices → peak: %d (t=%.4f)  postpeak: %d (t=%.4f)  last: %
          pp_fi,   frame_times[pp_fi],
          last_fi, frame_times[last_fi]))
 
-# ── helpers ───────────────────────────────────────────────────────────────────
 def get_damage_field(frame):
     keys = list(frame.fieldOutputs.keys())
     for k in ('SDV2', 'SDV_2', 'STATEV2'):
@@ -141,7 +123,6 @@ def write_omega(frame, path):
                 mx = w
     return n, mx
 
-# ── write csvs ────────────────────────────────────────────────────────────────
 for fi, name in ((peak_fi, 'omega_peak.csv'),
                  (pp_fi,   'omega_postpeak.csv'),
                  (last_fi, 'omega_last.csv')):

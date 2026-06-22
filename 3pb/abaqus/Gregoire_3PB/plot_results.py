@@ -1,28 +1,3 @@
-# -*- coding: utf-8 -*-
-#!/usr/bin/env python
-"""
-plot_results.py
-===============
-Standalone Python script (run with a normal CPython / Anaconda, NOT Abaqus).
-Reads the CSVs already in results/ and produces:
-
-    results/load_cmod_plot.png / .pdf          -- Load vs CMOD (publication quality)
-    results/damage_postpeak.png / .pdf         -- Damage map at post-peak frame
-    results/damage_last_step.png / .pdf        -- Damage map at last step frame
-    results/damage_peak.png / .pdf             -- Damage map at peak load (if data exists)
-
-RUN:
-    python plot_results.py
-    python plot_results.py "path/to/results"
-
-The script auto-locates the results folder relative to itself if not supplied.
-
-NOTE on omega_peak.csv being empty:
-    The Abaqus field output was written every FIELD_FREQ increments (default 100).
-    The peak load frame often falls between two field frames.  The postpeak and
-    last frames are used instead.  If you need peak-frame damage, re-run with
-    ABQ_FIELD_FREQ=1 or extract again with extract_damage.py (abaqus python).
-"""
 
 from __future__ import print_function
 import os
@@ -36,18 +11,15 @@ from matplotlib.collections import PolyCollection
 from matplotlib.lines import Line2D
 import matplotlib.patches as mpatches
 
-# ── tuneable ──────────────────────────────────────────────────────────────────
-FULL_DAMAGE_THRESHOLD = 0.99   # omega >= this → element is "fully damaged"
-CMOD_XLIM             = None   # set e.g. (0, 0.35) to clip x-axis; None = auto
-LOAD_YLIM             = None   # set e.g. (0, 5.0)  to clip y-axis (kN); None = auto
-DPI                   = 300    # output resolution
-# ─────────────────────────────────────────────────────────────────────────────
-
+FULL_DAMAGE_THRESHOLD = 0.99
+CMOD_XLIM             = None
+LOAD_YLIM             = None
+DPI                   = 300
 
 def _find_results(arg):
     if arg and os.path.isdir(arg):
         return os.path.abspath(arg)
-    # search relative to this script
+
     base = os.path.dirname(os.path.abspath(__file__))
     cands = [
         os.path.join(base, 'results'),
@@ -60,9 +32,8 @@ def _find_results(arg):
         'Cannot find results/ folder.  Pass it as an argument:\n'
         '  python plot_results.py "path/to/results"')
 
-
 def read_csv2(path):
-    """Read a 2-column CSV (skip # comments).  Returns (col0, col1) as float arrays."""
+
     rows = []
     with open(path, 'r') as f:
         for ln in f:
@@ -79,9 +50,8 @@ def read_csv2(path):
     arr = np.array(rows)
     return arr[:, 0], arr[:, 1]
 
-
 def read_omega_csv(path):
-    """Read omega CSV -> dict {element_label: max_omega_over_IPs}."""
+
     d = {}
     if not os.path.exists(path):
         return d
@@ -98,16 +68,8 @@ def read_omega_csv(path):
             d[eid] = max(d.get(eid, 0.0), omega)
     return d
 
-
 def load_mesh(pd_dir):
-    """
-    Returns:
-        nodes  – (N,2) float array of [x, y]
-        node_map – {label: index}
-        elems  – (M,3) int array of node indices (into nodes)
-        elabels – (M,) int array of element labels
-        elem_map – {label: index}
-    """
+
     nraw = []
     with open(os.path.join(pd_dir, 'mesh_nodes.csv'), 'r') as f:
         for ln in f:
@@ -134,22 +96,16 @@ def load_mesh(pd_dir):
     elem_map = {lbl: i for i, lbl in enumerate(elabels)}
     return nodes, node_map, elems, elabels, elem_map
 
-
 def omega_array(omega_dict, elabels, elem_map):
-    """Map omega dict to per-element array aligned with elabels."""
+
     w = np.zeros(len(elabels))
     for lbl, val in omega_dict.items():
         if lbl in elem_map:
             w[elem_map[lbl]] = val
     return w
 
-
-# ─────────────────────────────────── FIGURE 1 ─────────────────────────────────
 def fig_load_cmod(CMOD, F_N, res_dir):
-    """
-    Publication-quality Load vs CMOD.
-    F_N  – load in Newtons.
-    """
+
     F_kN = F_N / 1000.0
 
     ip = int(np.argmax(F_kN))
@@ -161,21 +117,17 @@ def fig_load_cmod(CMOD, F_N, res_dir):
     col_fill = (0.08, 0.30, 0.72)
     col_line = (0.04, 0.18, 0.56)
 
-    # shaded area under curve
     ax.fill_between(CMOD, F_kN, 0,
                     color=col_fill, alpha=0.12, linewidth=0)
 
-    # main curve
     ax.plot(CMOD, F_kN, '-', color=col_line, linewidth=1.8, zorder=3)
 
-    # peak marker
     ax.plot(pk_cmod, pk_load, marker='*', markersize=14,
             markerfacecolor=(0.98, 0.80, 0.0),
             markeredgecolor=(0.38, 0.24, 0.0),
             markeredgewidth=0.8,
             linewidth=0, zorder=5)
 
-    # annotation
     x_max = CMOD.max()
     ha = 'left' if pk_cmod < 0.6 * x_max else 'right'
     offset = 0.02 * x_max if ha == 'left' else -0.02 * x_max
@@ -190,10 +142,8 @@ def fig_load_cmod(CMOD, F_N, res_dir):
         arrowprops=dict(arrowstyle='->', color=(0.50, 0.38, 0.10),
                         lw=0.8))
 
-    # grid
     ax.grid(True, linestyle=':', linewidth=0.5, color=(0.80, 0.80, 0.80), zorder=0)
 
-    # axes formatting
     for sp in ax.spines.values():
         sp.set_linewidth(0.7)
     ax.tick_params(labelsize=9, direction='out', top=False, right=False)
@@ -220,28 +170,19 @@ def fig_load_cmod(CMOD, F_N, res_dir):
     print('  Wrote %s.png / .pdf' % base)
     return pk_load, pk_cmod
 
-
-# ─────────────────────────────────── FIGURE 2 ─────────────────────────────────
 def fig_damage(nodes, elems, omega, label, base):
-    """
-    Damage map (MATLAB style):
-      • Grey full mesh
-      • Only elements with omega >= threshold shown in solid black
-      • No partial-damage colormap — binary: mesh grey OR crack black
-    """
+
     th = FULL_DAMAGE_THRESHOLD
     w_max = omega.max() if omega.size else 0.0
 
-    verts = nodes[elems]                       # (M, 3, 2)
+    verts = nodes[elems]
     x_min, x_max = nodes[:, 0].min(), nodes[:, 0].max()
     y_min, y_max = nodes[:, 1].min(), nodes[:, 1].max()
     aspect = (x_max - x_min) / max(y_max - y_min, 1e-9)
 
-    # figure size scales with specimen aspect ratio
     fw = min(max(20.0 / 2.54, aspect * 8.5 / 2.54), 34.0 / 2.54)
     fh_fig = 9.0 / 2.54
 
-    # layout: main axes | text panel
     left_pad = 0.07
     panel_w  = 0.22
     gap      = 0.02
@@ -257,13 +198,11 @@ def fig_damage(nodes, elems, omega, label, base):
     mesh_ec  = (0.80, 0.82, 0.84)
     crack_fc = (0.00, 0.00, 0.00)
 
-    # Layer 0: full grey mesh
     ax.add_collection(PolyCollection(verts,
                                      facecolors=mesh_fc,
                                      edgecolors=mesh_ec,
                                      linewidths=0.06))
 
-    # Layer 1: ONLY fully damaged elements (omega >= threshold) in black
     full_mask = omega >= th
     n_cracked = int(full_mask.sum())
     if full_mask.any():
@@ -284,7 +223,6 @@ def fig_damage(nodes, elems, omega, label, base):
         sp.set_visible(False)
     ax.tick_params(labelsize=9, direction='out', top=False, right=False)
 
-    # ── right-side legend panel ────────────────────────────────────────────
     axp = fig.add_axes([left_pad + ax_w + gap, bottom, panel_w - 0.02, ax_h])
     axp.set_xlim(0, 1); axp.set_ylim(0, 1); axp.axis('off')
 
@@ -325,8 +263,6 @@ def fig_damage(nodes, elems, omega, label, base):
     print('  Wrote %s.png / .pdf  [cracked: %d, max omega: %.4f]'
           % (os.path.basename(base), n_cracked, w_max))
 
-
-# ──────────────────────────────────────────────────────────────────────────────
 def main():
     arg = sys.argv[1] if len(sys.argv) > 1 else None
     res_dir = _find_results(arg)
@@ -336,7 +272,6 @@ def main():
     print('Plotdata dir: %s' % pd_dir)
     print()
 
-    # ── Load-CMOD ────────────────────────────────────────────────────────────
     csv_path = os.path.join(res_dir, 'abaqus_load_cmod.csv')
     if not os.path.exists(csv_path):
         print('ERROR: %s not found.  Cannot plot Load-CMOD.' % csv_path)
@@ -352,7 +287,6 @@ def main():
             pk_load, pk_cmod = fig_load_cmod(CMOD, F, res_dir)
             print()
 
-    # ── mesh ─────────────────────────────────────────────────────────────────
     nodes_csv = os.path.join(pd_dir, 'mesh_nodes.csv')
     elems_csv = os.path.join(pd_dir, 'mesh_elements.csv')
     if not (os.path.exists(nodes_csv) and os.path.exists(elems_csv)):
@@ -365,7 +299,6 @@ def main():
     print('  Elements: %d' % len(elems))
     print()
 
-    # ── damage figures ────────────────────────────────────────────────────────
     cases = [
         ('omega_peak.csv',     'Peak load',  'damage_peak'),
         ('omega_postpeak.csv', 'Post-peak',  'damage_postpeak'),
@@ -390,7 +323,6 @@ def main():
     print()
     print('Done.  All figures saved to:')
     print('  %s' % res_dir)
-
 
 if __name__ == '__main__':
     main()

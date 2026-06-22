@@ -1,23 +1,3 @@
-C=======================================================================
-C  CDM_UMAT_2D_OLIVER_T3_FAST.FOR
-C
-C  Faster Abaqus/Standard UMAT for CPS3 plane-stress scalar CDM.
-C  Uses MATLAB-equivalent Oliver direction-dependent T3 crack-band width:
-C
-C       h(n) = 2 / SUM_a | grad(N_a) dot n |,  a = 1..3
-C
-C  Required job-folder file:
-C       oliver_t3_gradN.dat
-C  Format:
-C       NOEL, g1x, g1y, g2x, g2y, g3x, g3y
-C
-C  Speed notes:
-C    - UMAT is still called point-by-point by Abaqus/Standard; true
-C      block vectorization is not possible inside a Standard UMAT.
-C    - This file removes small matrix loops in the stress/tangent update.
-C    - Use *DEPVAR, n=2 for fastest output: STATEV(1)=kappa, STATEV(2)=omega.
-C      If n>=4, STATEV(3)=h and STATEV(4)=Oliver flag are stored for checking.
-C=======================================================================
       SUBROUTINE UMAT(STRESS, STATEV, DDSDDE, SSE, SPD, SCD,
      1  RPL, DDSDDT, DRPLDE, DRPLDT,
      2  STRAN, DSTRAN, TIME, DTIME, TEMP, DTEMP, PREDEF, DPRED,
@@ -44,7 +24,6 @@ C=======================================================================
       REAL*8 OMAX
       PARAMETER (OMAX = 0.999999999999D0)
 
-C----- Material constants ---------------------------------------------
       E    = PROPS(1)
       ANU  = PROPS(2)
       FT   = PROPS(3)
@@ -52,16 +31,13 @@ C----- Material constants ---------------------------------------------
       FCFT = PROPS(5)
       EPS0 = FT / E
 
-C----- State variables -------------------------------------------------
       KAPPA = STATEV(1)
       OMEGA = STATEV(2)
 
-C----- Total strain; Abaqus uses engineering shear gamma_xy -----------
       EXX = STRAN(1) + DSTRAN(1)
       EYY = STRAN(2) + DSTRAN(2)
       GXY = STRAN(3) + DSTRAN(3)
 
-C----- Principal strains and plane-stress out-of-plane strain ---------
       EM  = 0.5D0 * (EXX + EYY)
       RAD = DSQRT(0.25D0*(EXX - EYY)*(EXX - EYY)
      &          + 0.25D0*GXY*GXY)
@@ -73,7 +49,6 @@ C----- Principal strains and plane-stress out-of-plane strain ---------
       J2 = 0.5D0 * ((E1-E2)*(E1-E2) + (E2-E3)*(E2-E3)
      &             + (E3-E1)*(E3-E1))
 
-C----- Modified von Mises equivalent strain ---------------------------
       A1 = (FCFT - 1.0D0) / (2.0D0 * FCFT *
      &     (1.0D0 - 2.0D0*ANU))
       A2 = 1.0D0 / (2.0D0 * FCFT)
@@ -86,13 +61,11 @@ C----- Modified von Mises equivalent strain ---------------------------
       IF (EQ .LT. 0.0D0) EQ = 0.0D0
       IF (EQ .GT. KAPPA) KAPPA = EQ
 
-C----- Oliver bandwidth from table; CELENT only if table unavailable ---
       CALL OLIVER_H_T3_FAST(NOEL, EXX, EYY, GXY, CELENT, H, IHFLAG)
 
       IF (NSTATV .GE. 3) STATEV(3) = H
       IF (NSTATV .GE. 4) STATEV(4) = DBLE(IHFLAG)
 
-C----- Exponential softening, same as MATLAB --------------------------
       EF = 0.5D0*EPS0 + GF/(H*FT)
       IF (EF .LE. EPS0) EF = EPS0 + 1.0D-12
 
@@ -108,7 +81,6 @@ C----- Exponential softening, same as MATLAB --------------------------
       IF (OMEGA_NEW .GT. OMAX)  OMEGA_NEW = OMAX
       OMEGA = OMEGA_NEW
 
-C----- Unrolled plane-stress stress and secant tangent ----------------
       DENOM = 1.0D0 - ANU*ANU
       C11 = E / DENOM
       C12 = E * ANU / DENOM
@@ -130,16 +102,12 @@ C----- Unrolled plane-stress stress and secant tangent ----------------
       DDSDDE(2,2) = FAC*C11
       DDSDDE(3,3) = FAC*C33
 
-C----- Store state -----------------------------------------------------
       STATEV(1) = KAPPA
       STATEV(2) = OMEGA
 
       RETURN
       END
 
-C=======================================================================
-C  Oliver bandwidth for CPS3 element NOEL.
-C=======================================================================
       SUBROUTINE OLIVER_H_T3_FAST(NOEL, EXX, EYY, GXY, CELENT,
      &                            H, IFLAG)
 
@@ -181,9 +149,6 @@ C=======================================================================
       RETURN
       END
 
-C=======================================================================
-C  Fast direct-indexed gradient table reader.
-C=======================================================================
       SUBROUTINE OLIVER_GET_GRAD_FAST(NOEL, G1X, G1Y, G2X, G2Y,
      &                                G3X, G3Y, HAVE)
 
@@ -193,9 +158,9 @@ C=======================================================================
       REAL*8 G1X, G1Y, G2X, G2Y, G3X, G3Y
       LOGICAL HAVE
 
-      INTEGER MAXE, I, IE, IOS, IOS2, NREAD, LU
+      INTEGER MAXE, I, IE, IOS, IOS2, NREAD, LU, LOUT
       PARAMETER (MAXE = 1000000)
-      CHARACTER*256 LINE
+      CHARACTER*256 LINE, TABLEPATH, OUTDIR
       LOGICAL INIT, READY, HAS(MAXE), WARNED
       REAL*8 AG1X(MAXE), AG1Y(MAXE), AG2X(MAXE), AG2Y(MAXE)
       REAL*8 AG3X(MAXE), AG3Y(MAXE)
@@ -216,8 +181,26 @@ C=======================================================================
          END DO
 
          LU = 97
-         OPEN(UNIT=LU, FILE='oliver_t3_gradN.dat', STATUS='OLD',
-     &        IOSTAT=IOS)
+         IOS = 1
+         TABLEPATH = ' '
+         OUTDIR = ' '
+         CALL GETENV('ABQ_OLIVER_TABLE', TABLEPATH)
+         IF (TABLEPATH .NE. ' ') THEN
+            OPEN(UNIT=LU, FILE=TABLEPATH, STATUS='OLD',
+     &           IOSTAT=IOS)
+         END IF
+         IF (IOS .NE. 0) THEN
+            CALL GETOUTDIR(OUTDIR, LOUT)
+            IF (LOUT .GT. 0) THEN
+               TABLEPATH = OUTDIR(1:LOUT) // '/oliver_t3_gradN.dat'
+               OPEN(UNIT=LU, FILE=TABLEPATH, STATUS='OLD',
+     &              IOSTAT=IOS)
+            END IF
+         END IF
+         IF (IOS .NE. 0) THEN
+            OPEN(UNIT=LU, FILE='oliver_t3_gradN.dat', STATUS='OLD',
+     &           IOSTAT=IOS)
+         END IF
          IF (IOS .NE. 0) THEN
             OPEN(UNIT=LU, FILE='oliver_gradN.dat', STATUS='OLD',
      &           IOSTAT=IOS)
@@ -255,7 +238,8 @@ C=======================================================================
          END IF
 
          IF (.NOT. READY) THEN
-            WRITE(6,*) 'UMAT WARNING: oliver_t3_gradN.dat not found.'
+            WRITE(6,*) 'UMAT WARNING: Oliver table not found.'
+            WRITE(6,*) 'UMAT WARNING: ABQ_OLIVER_TABLE=', TABLEPATH
             WRITE(6,*) 'UMAT WARNING: using Abaqus CELENT fallback.'
          END IF
       END IF

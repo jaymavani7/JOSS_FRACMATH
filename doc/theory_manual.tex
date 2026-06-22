@@ -19,7 +19,7 @@
 \titleformat{\section}{\Large\bfseries\color{MidnightBlue}}{\thesection}{0.6em}{}
 \titleformat{\subsection}{\large\bfseries\color{MidnightBlue!85!black}}{\thesubsection}{0.6em}{}
 \pagestyle{fancy}\fancyhf{}
-\lhead{\small FRACMAT --- Theory Manual}
+\lhead{\small FRACMATH --- Theory Manual}
 \rhead{\small CDM, modified von Mises, Newton--Raphson}
 \cfoot{\thepage}
 \renewcommand{\headrulewidth}{0.3pt}
@@ -39,7 +39,7 @@
 \newcommand{\dd}{\,\mathrm{d}}
 \newcommand{\norm}[1]{\left\lVert#1\right\rVert}
 
-\title{\textbf{Damage Mechanics in FRACMAT}\\[2pt]
+\title{\textbf{Damage Mechanics in FRACMATH}\\[2pt]
 \large A worked derivation of the scalar CDM model,\\
 the modified von Mises equivalent strain, and the Newton--Raphson solver}
 \author{Jaykumar Mavani \quad\textbar\quad Madura Pathirage\\
@@ -52,7 +52,7 @@ the modified von Mises equivalent strain, and the Newton--Raphson solver}
 
 \begin{abstract}
 \noindent
-This manual derives the constitutive model behind FRACMAT, step by step, with nothing
+This manual derives the constitutive model behind FRACMATH, step by step, with nothing
 swept under the rug. It covers the scalar isotropic damage law, the modified von Mises
 equivalent strain of de Vree and co-workers, exponential softening, crack band
 regularization through Oliver's characteristic length, and the modified Newton--Raphson
@@ -294,7 +294,7 @@ dissipation argument demanded.
 % =====================================================================
 
 We need a rule $\omega(\kappa)$ that climbs from $0$ at $\kappa_0$ toward $1$ as $\kappa$
-grows. FRACMAT uses the exponential law
+grows. FRACMATH uses the exponential law
 %
 \begin{equation}
 \omega(\kappa) = 1 - \frac{\kappa_0}{\kappa}\,
@@ -386,7 +386,7 @@ independent of the mesh.
 
 \subsection{The characteristic length: Oliver's projection}
 
-The remaining question is what $h$ to use. For a linear triangle, FRACMAT uses Oliver's
+The remaining question is what $h$ to use. For a linear triangle, FRACMATH uses Oliver's
 projection,
 %
 \begin{equation}
@@ -498,10 +498,10 @@ As $S\to 0$ near a stress-free state this expression is singular, which is harml
 damage is inactive there and the dyad term is never assembled; the code guards the divide
 with the loading check anyway.
 
-\subsection{What FRACMAT actually solves: the modified (secant) scheme}
+\subsection{What FRACMATH actually solves: the modified (secant) scheme}
 
 Full Newton with \eqref{eq:tangent} converges quadratically but is fragile once the dyad
-term turns the tangent unsymmetric and nearly singular. FRACMAT instead uses the
+term turns the tangent unsymmetric and nearly singular. FRACMATH instead uses the
 \emph{modified} Newton--Raphson scheme: keep only the symmetric secant part,
 %
 \begin{equation}

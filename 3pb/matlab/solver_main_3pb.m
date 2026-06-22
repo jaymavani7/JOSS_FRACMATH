@@ -1,32 +1,10 @@
 function solver_main_3pb_OLIVER_bandwidth_vectorized()
-% SOLVER_MAIN_3PB_OLIVER_BANDWIDTH_VECTORIZED  Single-file MATLAB solver for the notched 3PB case.
-%
-%   Reads the .txt mesh files written by export_3pb.m (or make_mesh_3pb.py),
-%   runs the vectorized CDM solver (modified von Mises eq strain, exponential
-%   softening, full direction-dependent Oliver crack-band regularization, modified Newton-Raphson with
-%   secant tangent refactored once per load step), saves all plots
-%   and the timing log.
-%
-%   Requires:
-%       Gregoire_3PB/nodes.txt, elements.txt, top_nodes.txt,
-%       left_nodes.txt, right_nodes.txt, cmod1.txt, cmod2.txt
-%
-%   Outputs (in Gregoire_3PB/results/):
-%       matlab_load_cmod.csv              CMOD[mm], Load[N]
-%       matlab_timing.txt                 peak load + breakdown + RAM
-%       fig_mesh.png/pdf                  mesh + BCs + load (visualization)
-%       matlab_load_cmod_fig.png/pdf      Load vs CMOD curve
-%       fig_damage_peak.png/pdf           damage contour at peak load
-%       fig_damage_postpeak.png/pdf       damage contour late post-peak
-%       fig_damage_last_step.png/pdf      damage geometry at final/last solved step
-%       simulation_video.mp4              Video of the simulation process
 
 clc;
 fprintf('==== MATLAB CDM 3PB solver: vectorized modified Newton-Raphson ====\n');
 
-maxNumCompThreads(1);   % match Abaqus cpus=1 (remove for multicore compare)
+maxNumCompThreads(1);
 
-% --- where the .txt files are ------------------------------------------
 case_dir = 'Gregoire_3PB';
 if ~exist(case_dir, 'dir')
     error('Folder %s not found. Run export_3pb first to generate mesh files.', ...
@@ -36,68 +14,50 @@ end
 res_dir = fullfile(case_dir, 'results');
 if ~exist(res_dir, 'dir'); mkdir(res_dir); end
 
-% --- material + solver parameters --------------------------------------
-p.E         = 37000;       % MPa
+p.E         = 37000;
 p.nu        = 0.20;
-p.t         = 50;          % mm  (thickness)
-p.ft        = 3.50;        % MPa
-p.fc        = 35.0;        % MPa
-p.GF        = 0.090;       % N/mm
+p.t         = 50;
+p.ft        = 3.50;
+p.fc        = 35.0;
+p.GF        = 0.090;
 p.OMEGA_MAX = 1 - 1e-12;
 p.eps0      = p.ft / p.E;
 
-p.max_disp  = -0.2;        % mm  total midspan deflection
-p.num_steps = 1000;    % MATCH Abaqus N_INC for fair timing (was 10000)
+p.max_disp  = -0.2;
+p.num_steps = 10000;
 p.tol       = 1e-6;
 p.max_iter  = 30;
 p.cmod_limit = 0.5;
 
-live_every   = 5;          % refresh live window every N steps
+live_every   = 5;
 
-% =====================================================================
-% 1. Load the mesh
-% =====================================================================
 [nodes, elems, dof] = load_mesh(case_dir);
 nN = size(nodes, 1);
 nE = size(elems, 1);
 fprintf('  mesh: %d nodes, %d CPS3 elements, %d DOFs\n', nN, nE, 2*nN);
 
-% --- save static mesh figure -------------------------------------------
 fig_mesh(nodes, elems, dof, res_dir);
 
-% =====================================================================
-% 2. Pre-compute element data
-% =====================================================================
 [B_all, area_v, gradN_all, dof_mat] = precompute_T3(nodes, elems);
 D_el = (p.E / (1 - p.nu^2)) * [1 p.nu 0; p.nu 1 0; 0 0 (1-p.nu)/2];
 DB   = pagemtimes(D_el, B_all);
 Ke0  = pagemtimes(permute(B_all,[2 1 3]), DB) .* ...
        reshape(area_v * p.t, 1, 1, []);
 [II, JJ] = sparse_indices(dof_mat);
-% Full Oliver bandwidth is direction-dependent, so it is computed inside
-% damage_update from the current principal strain direction of each element.
 
-% =====================================================================
-% 3. Open the LIVE figure & Setup Video Writer
-% =====================================================================
 live = open_live_fig(nodes, elems);
 
-% Setup Video Writer
 video_path = fullfile(res_dir, 'simulation_video.mp4');
 v_writer = VideoWriter(video_path, 'MPEG-4');
-v_writer.FrameRate = 10; % Frames per second (adjust to speed up/slow down)
+v_writer.FrameRate = 10;
 v_writer.Quality = 95;
 open(v_writer);
 fprintf('  Saving video to: %s\n', video_path);
 
-% =====================================================================
-% 4. Solve (vectorised modified Newton-Raphson, secant tangent)
-% =====================================================================
 omega = zeros(nE, 1);
 kappa = zeros(nE, 1);
 u     = zeros(2*nN, 1);
 
-% Preallocate histories. They are trimmed after the loop if CMOD limit is reached.
 CMOD  = zeros(p.num_steps, 1);
 F     = zeros(p.num_steps, 1);
 Disp  = zeros(p.num_steps, 1);
@@ -106,8 +66,6 @@ Hmin  = zeros(p.num_steps, 1);
 Hmax  = zeros(p.num_steps, 1);
 steps_done = 0;
 
-% Cache K after each damage update. This avoids assembling the same damaged
-% secant stiffness twice: once for reaction and again at the next step.
 K_next = [];
 
 t_asm = 0; t_dam = 0; t_solve = 0; t_viz = 0;
@@ -125,7 +83,6 @@ for step = 1:p.num_steps
     u_tgt = step * (p.max_disp / p.num_steps);
     u(dof.prescribed) = u_tgt;
 
-    % --- assemble/reuse secant stiffness at start of step --------------
     tic;
     if isempty(K_next)
         K = assemble_K(Ke0, omega, II, JJ, nN);
@@ -134,8 +91,6 @@ for step = 1:p.num_steps
         K_next = [];
     end
 
-    % Modified Newton-Raphson: factor the fixed secant tangent once per
-    % load step, then reuse the factorization in every equilibrium iterate.
     Kff  = K(dof.free, dof.free);
     Kfac = factor_free_stiffness(Kff);
     t_asm = t_asm + toc;
@@ -158,13 +113,10 @@ for step = 1:p.num_steps
         t_solve = t_solve + toc;
     end
 
-    % --- damage update -------------------------------------------------
     tic;
     [omega, kappa, h_oliver] = damage_update(u, B_all, gradN_all, dof_mat, kappa, omega, p);
     t_dam = t_dam + toc;
 
-    % Reassemble once after the damage update. This gives a reaction force
-    % consistent with the updated damage and is cached for the next step.
     tic;
     K_next  = assemble_K(Ke0, omega, II, JJ, nN);
     r_react = K_next * u;
@@ -182,7 +134,6 @@ for step = 1:p.num_steps
     Hmin(step)   = min(h_oliver);
     Hmax(step)   = max(h_oliver);
 
-    % --- snapshots for final figures -----------------------------------
     if F_now > peak_load_so_far
         peak_load_so_far  = F_now;
         snap_peak.u       = u;
@@ -195,13 +146,11 @@ for step = 1:p.num_steps
         snap_pp.load  = F_now;
     end
 
-    % --- console progress ----------------------------------------------
     if mod(step, max(1, round(p.num_steps/20))) == 0 || step <= 3
         fprintf('  %4d  %7.4f  %9.3f  %10.5f  %6.3f  %4d\n', ...
                 step, -u_tgt, F_now/1000, C_now, d_max, it);
     end
 
-    % --- update live figure AND WRITE VIDEO FRAME (NOT solver time) ------
     if mod(step, live_every) == 0 || step == 1 || step == p.num_steps
         tv = tic;
         update_live_fig(live, nodes, u, omega, CMOD(1:step).', F(1:step).', step, ...
@@ -217,12 +166,9 @@ for step = 1:p.num_steps
     end
 end
 
-% Stop the solver clock the instant the load loop ends: BEFORE history
-% trimming and BEFORE closing the video file, so neither pollutes the time.
-t_total  = toc(wall0);          % end-of-solve wall (incl. in-loop live fig + video)
-t_solver = t_total - t_viz;     % pure FE solver wall-clock -> compare to Abaqus
+t_total  = toc(wall0);
+t_solver = t_total - t_viz;
 
-% Trim histories to the actual number of completed load steps.
 CMOD  = CMOD(1:steps_done).';
 F     = F(1:steps_done).';
 Disp  = Disp(1:steps_done).';
@@ -230,7 +176,6 @@ Hmean = Hmean(1:steps_done).';
 Hmin  = Hmin(1:steps_done).';
 Hmax  = Hmax(1:steps_done).';
 
-% Close the video writer (NOT timed: happens after the clock is stopped)
 close(v_writer);
 fprintf('  Video saved successfully.\n');
 ram_after  = ram_bytes();
@@ -243,9 +188,6 @@ if isempty(snap_pp.u)
     snap_pp.u = u; snap_pp.omega = omega; snap_pp.load = F(end);
 end
 
-% =====================================================================
-% 5. Save results
-% =====================================================================
 [pk_load, ip] = max(F);
 pk_cmod = CMOD(ip);
 
@@ -256,8 +198,6 @@ fprintf(fid, '%.6e, %.6e\n', [CMOD(:), F(:)].');
 fclose(fid);
 fprintf('  wrote %s\n', csv_path);
 
-% Save Oliver bandwidth history. These values change because the crack
-% normal direction changes with the strain state.
 hcsv_path = fullfile(res_dir, 'matlab_oliver_bandwidth_history.csv');
 fid = fopen(hcsv_path, 'w');
 fprintf(fid, '# step, mean_h_oliver[mm], min_h_oliver[mm], max_h_oliver[mm]\n');
@@ -287,9 +227,6 @@ end
 fclose(fid);
 fprintf('  wrote %s\n', t_path);
 
-% =====================================================================
-% 6. Final static figures
-% =====================================================================
 fig_load_cmod(CMOD, F, pk_load, pk_cmod, res_dir);
 
 fig_damage(nodes, elems, snap_peak.u, snap_peak.omega, ...
@@ -300,7 +237,6 @@ fig_damage(nodes, elems, snap_pp.u, snap_pp.omega, ...
            sprintf('Post-peak: %.2f kN', snap_pp.load/1000), ...
            fullfile(res_dir, 'fig_damage_postpeak'));
 
-% Final / last solved step damage geometry
 fig_damage(nodes, elems, u, omega, ...
            sprintf('Last step: %.2f kN', F(end)/1000), ...
            fullfile(res_dir, 'fig_damage_last_step'));
@@ -312,19 +248,11 @@ fprintf('  wall-clock: %.1f s  (asm %.1f, dam %.1f, solve %.1f)\n', ...
 fprintf('  peak RAM  : %.1f MB\n', peak_ram_MB);
 fprintf('  output -> %s/\n', res_dir);
 
-end % solver_main_3pb
+end
 
-
-% =====================================================================
-%                       LIVE FIGURE HELPERS
-% =====================================================================
 function live = open_live_fig(nodes, elems)
-% LIVE view: show ONLY fully damaged elements.
-% The old version interpolated element damage to nodes, which makes the
-% crack look smeared. This version plots the full beam in grey and overlays
-% only elements with omega >= FULL_DAMAGE_THRESH.
 
-    FULL_DAMAGE_THRESH = 0.99;   % "full damage" threshold. Use 0.99 if stricter is needed.
+    FULL_DAMAGE_THRESH = 0.99;
 
     fh = figure('Name','CDM 3PB – Live', ...
                 'Color','w', ...
@@ -334,7 +262,6 @@ function live = open_live_fig(nodes, elems)
     ax1 = subplot(1,2,1,'Parent',fh);
     hold(ax1,'on');
 
-    % Background mesh / specimen
     ph_bg = patch('Parent',ax1, ...
                   'Faces',elems, ...
                   'Vertices',nodes, ...
@@ -342,7 +269,6 @@ function live = open_live_fig(nodes, elems)
                   'EdgeColor',[0.78 0.80 0.82], ...
                   'LineWidth',0.10);
 
-    % Fully damaged elements only
     ph_fd = patch('Parent',ax1, ...
                   'Faces',zeros(0,3), ...
                   'Vertices',nodes, ...
@@ -387,8 +313,6 @@ end
 
 function update_live_fig(live, nodes, u, omega, CMOD, F, step, ...
                           F_now, C_now, d_max)
-% LIVE update: no nodal averaging, no smeared damage.
-% Only elements satisfying omega >= live.full_damage_thresh are drawn.
 
     if ~ishandle(live.fh), return; end
 
@@ -416,7 +340,7 @@ function update_live_fig(live, nodes, u, omega, CMOD, F, step, ...
 end
 
 function omega_node = elem2node_avg(omega_e, elems, nN)
-    % Fully vectorized element-to-node averaging for T3 elements.
+
     ids = elems(:);
     val = repelem(omega_e(:), 3);
 
@@ -426,10 +350,6 @@ function omega_node = elem2node_avg(omega_e, elems, nN)
     omega_node = acc ./ max(cnt, 1);
 end
 
-
-% =====================================================================
-%                    MESH LOADING
-% =====================================================================
 function [nodes, elems, dof] = load_mesh(d)
     raw_n = load(fullfile(d, 'nodes.txt'));
     raw_e = load(fullfile(d, 'elements.txt'));
@@ -448,9 +368,8 @@ function [nodes, elems, dof] = load_mesh(d)
 
     nN = size(nodes,1);
 
-    % Vectorized boundary-condition DOF construction.
-    fix_left  = reshape([2*left(:)-1, 2*left(:)].', [], 1);  % ux, uy fixed
-    fix_right = 2*right(:);                                  % uy fixed only
+    fix_left  = reshape([2*left(:)-1, 2*left(:)].', [], 1);
+    fix_right = 2*right(:);
     fix       = [fix_left; fix_right];
 
     pres    = 2 * top(:);
@@ -463,7 +382,6 @@ function [nodes, elems, dof] = load_mesh(d)
     dof.cmod2      = c2;
 end
 
-
 function v = load_id(d, fname)
     f = fullfile(d, fname);
     v = [];
@@ -473,10 +391,6 @@ function v = load_id(d, fname)
     end
 end
 
-
-% =====================================================================
-%                    ELEMENT PRE-COMPUTATION
-% =====================================================================
 function [B_all, area_v, gradN_all, dof_mat] = precompute_T3(nodes, elems)
     x1 = nodes(elems(:,1),1);  y1 = nodes(elems(:,1),2);
     x2 = nodes(elems(:,2),1);  y2 = nodes(elems(:,2),2);
@@ -489,8 +403,6 @@ function [B_all, area_v, gradN_all, dof_mat] = precompute_T3(nodes, elems)
         error('Zero or near-zero CPS3 area at element %d.', bad);
     end
 
-    % T3 shape-function derivatives:
-    % grad(Na) = [dNa/dx, dNa/dy]. These are constant inside each T3 element.
     b1 = y2-y3; b2 = y3-y1; b3 = y1-y2;
     c1 = x3-x2; c2 = x1-x3; c3 = x2-x1;
     inv2A_signed = 1 ./ (2*area_signed);
@@ -506,8 +418,6 @@ function [B_all, area_v, gradN_all, dof_mat] = precompute_T3(nodes, elems)
     B_all(3,1,:) = g1y;  B_all(3,2,:) = g1x;  B_all(3,3,:) = g2y;
     B_all(3,4,:) = g2x;  B_all(3,5,:) = g3y;  B_all(3,6,:) = g3x;
 
-    % Store all shape-function gradients for Oliver bandwidth calculation.
-    % Columns: [g1x g1y g2x g2y g3x g3y]
     gradN_all = [g1x, g1y, g2x, g2y, g3x, g3y];
 
     dof_mat = [2*elems(:,1)-1, 2*elems(:,1), ...
@@ -515,13 +425,11 @@ function [B_all, area_v, gradN_all, dof_mat] = precompute_T3(nodes, elems)
                2*elems(:,3)-1, 2*elems(:,3)];
 end
 
-
 function [II, JJ] = sparse_indices(dof_mat)
     [lr, lc] = ndgrid(1:6, 1:6);
     II = dof_mat(:, lr(:));
     JJ = dof_mat(:, lc(:));
 end
-
 
 function K = assemble_K(Ke0, omega, II, JJ, nN)
     nE = size(Ke0,3);
@@ -531,9 +439,7 @@ function K = assemble_K(Ke0, omega, II, JJ, nN)
 end
 
 function Kfac = factor_free_stiffness(Kff)
-    % Robust factorization helper for the free-DOF stiffness block.
-    % Cholesky is fastest for a positive-definite secant stiffness; LU is
-    % used as a safe fallback near severe damage/softening.
+
     try
         Kfac = decomposition(Kff, 'chol');
     catch
@@ -541,10 +447,6 @@ function Kfac = factor_free_stiffness(Kff)
     end
 end
 
-
-% =====================================================================
-%                        DAMAGE UPDATE
-% =====================================================================
 function [omega_new, kappa_new, h_oliver] = damage_update(u, B_all, gradN_all, dof_mat, ...
                                                 kappa_old, omega_old, p)
     nE   = size(B_all,3);
@@ -556,31 +458,18 @@ function [omega_new, kappa_new, h_oliver] = damage_update(u, B_all, gradN_all, d
     rad = sqrt(((ex-ey)/2).^2 + (gxy/2).^2);
     e1  = me + rad;  e2 = me - rad;
 
-    % -----------------------------------------------------------------
-    % Full Oliver direction-dependent crack-band width for T3 elements
-    % -----------------------------------------------------------------
-    % Crack normal n is taken as the maximum principal strain direction.
-    % For a 2D strain tensor [ex gxy/2; gxy/2 ey], the principal angle is:
-    % theta = 0.5 atan2(gxy, ex-ey).
     theta_p = 0.5 * atan2(gxy, ex - ey);
     nx = cos(theta_p);
     ny = sin(theta_p);
 
-    % If the strain state is almost hydrostatic/isotropic, the principal
-    % direction is numerically undefined. Use the x-direction only for those
-    % rare cases to keep h finite and stable.
     iso = abs(ex-ey) + abs(gxy) < 1e-18;
     nx(iso) = 1.0;
     ny(iso) = 0.0;
 
     h_oliver = oliver_bandwidth_T3(gradN_all, nx, ny);
 
-    % Exponential stress-strain softening parameter with Oliver bandwidth.
-    % eps_f = eps0/2 + GF/(h_oliver*ft)
     ef_e = max(p.eps0/2 + p.GF ./ (h_oliver * p.ft), p.eps0 + 1e-12);
 
-    % Modified von Mises equivalent strain, using plane-stress out-of-plane
-    % principal strain approximation.
     e3  = -(p.nu/(1-p.nu)) .* (e1+e2);
     I1  = e1+e2+e3;
     J2  = 0.5*((e1-e2).^2 + (e2-e3).^2 + (e3-e1).^2);
@@ -608,9 +497,7 @@ function [omega_new, kappa_new, h_oliver] = damage_update(u, B_all, gradN_all, d
 end
 
 function h = oliver_bandwidth_T3(gradN_all, nx, ny)
-    % Direction-dependent Oliver bandwidth:
-    % h(n) = 2 / sum_a |grad(N_a) dot n|, a = 1..3 for T3.
-    % gradN_all columns are [g1x g1y g2x g2y g3x g3y].
+
     g1x = gradN_all(:,1); g1y = gradN_all(:,2);
     g2x = gradN_all(:,3); g2y = gradN_all(:,4);
     g3x = gradN_all(:,5); g3y = gradN_all(:,6);
@@ -623,31 +510,14 @@ function h = oliver_bandwidth_T3(gradN_all, nx, ny)
     h = max(h, 1e-12);
 end
 
-
-% =====================================================================
-%          PUBLICATION-QUALITY STATIC FIGURES
-% =====================================================================
-
-% ---------------------------------------------------------------------
-%  DAMAGE / CRACK FIGURE
-% ---------------------------------------------------------------------
 function fig_damage(nodes, elems, u, omega, label, basepath)
-% Publication-quality crack figure: show ONLY fully damaged elements.
-%
-% CLEAN LEGEND VERSION:
-%   - No boxed legend panel
-%   - No information rectangle/box
-%   - No MATLAB legend() auto-layout
-%   - Main plot uses the full width and the right side has simple clean text
-%   - Saved PNG/PDF are not cropped
 
-    %#ok<INUSD>  % u is kept in the signature for compatibility/snapshots.
-    deformed = nodes;   % undeformed view
+    deformed = nodes;
 
     x_min = min(nodes(:,1));  x_max = max(nodes(:,1));
     y_min = min(nodes(:,2));  y_max = max(nodes(:,2));
 
-    THRESH_FULL = 0.99;        % full damage threshold
+    THRESH_FULL = 0.99;
     full_idx    = find(omega >= THRESH_FULL);
 
     fh = figure('Color','w', ...
@@ -659,13 +529,11 @@ function fig_damage(nodes, elems, u, omega, label, basepath)
                 'PaperSize',[25.5 7.8], ...
                 'PaperPosition',[0 0 25.5 7.8]);
 
-    % Main specimen axis. A small right margin is reserved for clean text.
     ax = axes('Parent',fh, ...
               'Units','normalized', ...
               'Position',[0.065 0.18 0.760 0.73]);
     hold(ax,'on');
 
-    % ---- layer 1: full mesh/specimen in very light grey ---------------
     patch('Parent',ax, ...
           'Faces',elems, ...
           'Vertices',deformed, ...
@@ -673,7 +541,6 @@ function fig_damage(nodes, elems, u, omega, label, basepath)
           'EdgeColor',[0.86 0.875 0.89], ...
           'LineWidth',0.045);
 
-    % ---- layer 2: ONLY fully damaged elements -------------------------
     if ~isempty(full_idx)
         patch('Parent',ax, ...
               'Faces',elems(full_idx,:), ...
@@ -684,7 +551,7 @@ function fig_damage(nodes, elems, u, omega, label, basepath)
     end
 
     axis(ax,'equal');
-    ax.Box       = 'off';      % removes the outer rectangular box
+    ax.Box       = 'off';
     ax.LineWidth = 0.75;
     ax.FontSize  = 10;
     ax.TickDir   = 'out';
@@ -700,10 +567,6 @@ function fig_damage(nodes, elems, u, omega, label, basepath)
           'FontSize',13, ...
           'FontWeight','bold');
 
-    % ------------------------------------------------------------------
-    % Clean right-side legend and statistics.
-    % No border box is drawn here.
-    % ------------------------------------------------------------------
     axp = axes('Parent',fh, ...
                'Units','normalized', ...
                'Position',[0.850 0.19 0.135 0.70]);
@@ -719,7 +582,6 @@ function fig_damage(nodes, elems, u, omega, label, basepath)
          'Interpreter','none', ...
          'Clipping','off');
 
-    % FE mesh sample: use a thick light line, not a boxed patch.
     plot(axp,[0.02 0.22],[0.83 0.83],'-', ...
          'Color',[0.86 0.875 0.89], ...
          'LineWidth',8);
@@ -730,7 +592,6 @@ function fig_damage(nodes, elems, u, omega, label, basepath)
          'Interpreter','none', ...
          'Clipping','off');
 
-    % Fully damaged sample: use a thick black line, not a boxed patch.
     plot(axp,[0.02 0.22],[0.70 0.70],'-', ...
          'Color',[0.00 0.00 0.00], ...
          'LineWidth',8);
@@ -775,9 +636,6 @@ function fig_damage(nodes, elems, u, omega, label, basepath)
     close(fh);
 end
 
-% ---------------------------------------------------------------------
-%  LOAD vs CMOD FIGURE
-% ---------------------------------------------------------------------
 function fig_load_cmod(CMOD, F, pk_load, pk_cmod, res_dir)
 
     fh = figure('Color','w', ...
@@ -797,23 +655,19 @@ function fig_load_cmod(CMOD, F, pk_load, pk_cmod, res_dir)
     ax.LineWidth      = 0.7;
     ax.Box            = 'on';
 
-    % shaded fill under curve
     fill(ax, [CMOD, fliplr(CMOD)], [F/1000, zeros(1,numel(F))], ...
          [0.08 0.30 0.72], 'FaceAlpha',0.10, 'EdgeColor','none');
 
-    % main curve
     plot(ax, CMOD, F/1000, '-', ...
          'Color',[0.08 0.30 0.72], 'LineWidth',2.0);
 
-    % peak star marker
     plot(ax, pk_cmod, pk_load/1000, 'pentagram', ...
          'MarkerSize',13, ...
          'MarkerFaceColor',[0.98 0.82 0.0], ...
          'MarkerEdgeColor',[0.40 0.28 0.0], ...
          'LineWidth',1.0);
 
-    % peak label — positioned to avoid overlap within the 0.35 limit
-    lbl_x  = pk_cmod + 0.35 * 0.03; 
+    lbl_x  = pk_cmod + 0.35 * 0.03;
     lbl_y  = pk_load/1000 * 1.04;
     ha_str = 'left';
     if lbl_x > 0.35 * 0.72
@@ -833,7 +687,6 @@ function fig_load_cmod(CMOD, F, pk_load, pk_cmod, res_dir)
     ylabel(ax, 'Load [kN]',  'Interpreter','latex','FontSize',10);
     title(ax,  'Load--CMOD response', 'FontSize',10,'FontWeight','bold');
 
-    % Set exact x-axis limit here
     xlim(ax, [0, 0.35]);
     ylim(ax, [0, pk_load/1000 * 1.28]);
 
@@ -841,9 +694,6 @@ function fig_load_cmod(CMOD, F, pk_load, pk_cmod, res_dir)
     close(fh);
 end
 
-% ---------------------------------------------------------------------
-%  MESH FIGURE
-% ---------------------------------------------------------------------
 function fig_mesh(nodes, elems, dof, res_dir)
 
     x_min = min(nodes(:,1));  x_max = max(nodes(:,1));
@@ -851,24 +701,20 @@ function fig_mesh(nodes, elems, dof, res_dir)
     span  = x_max - x_min;
     ht    = y_max - y_min;
 
-    % 1. Increase the figure width to create physical space for the label
     fh = figure('Color','w', ...
-                'Position',[100 100 800 320], ... 
+                'Position',[100 100 800 320], ...
                 'Visible','off', ...
                 'PaperUnits','centimeters', ...
                 'PaperSize',[18.0 7.2], ...
                 'PaperPosition',[0 0 18.0 7.2]);
 
-    % 2. Constrain the axes area so it doesn't expand into the label space
     ax = axes('Parent',fh,'Units','normalized','Position',[0.08 0.18 0.80 0.74]);
     hold(ax,'on');
 
-    % --- Mesh Visualization ---
     patch('Parent',ax,'Faces',elems,'Vertices',nodes, ...
           'FaceColor',[0.93 0.93 0.96], ...
           'EdgeColor',[0.50 0.58 0.72],'LineWidth',0.20);
 
-    % --- Supports ---
     n_fix = ceil(dof.fixed/2);
     cnt   = accumarray(n_fix(:), 1, [size(nodes,1),1]);
     for ni = find(cnt >= 2)'
@@ -878,7 +724,6 @@ function fig_mesh(nodes, elems, dof, res_dir)
         plot_support(ax, nodes(ni,1), y_min, 6, 'roller');
     end
 
-    % --- Load Arrow ---
     load_nodes = unique(ceil(dof.prescribed/2));
     xC = mean(nodes(load_nodes,1));
     yT = max(nodes(load_nodes,2));
@@ -889,8 +734,6 @@ function fig_mesh(nodes, elems, dof, res_dir)
          'Interpreter','latex','FontSize',12, ...
          'Color',[0.0 0.52 0.38],'FontWeight','bold');
 
-    % --- Dimensions ---
-    % Span (Bottom)
     ann_y = y_min - 13;
     draw_dim_arrow(ax, x_min, ann_y, x_max, ann_y, [0.22 0.22 0.22], 'horizontal');
     text(ax, (x_min+x_max)/2, ann_y - 3, ...
@@ -899,12 +742,11 @@ function fig_mesh(nodes, elems, dof, res_dir)
          'HorizontalAlignment','center','VerticalAlignment','top', ...
          'Color',[0.20 0.20 0.20]);
 
-    % Height (Right-side) - FIXED POSITIONING
-    rr_arrow = x_max + span*0.04; 
+    rr_arrow = x_max + span*0.04;
     rr_text  = rr_arrow + span*0.03;
-    
+
     draw_dim_arrow(ax, rr_arrow, y_min, rr_arrow, y_max, [0.22 0.22 0.22], 'vertical');
-    
+
     text(ax, rr_text, (y_min+y_max)/2, ...
          sprintf('$H = %.0f$ mm', ht), ...
          'Interpreter','latex','FontSize',9,'Color',[0.20 0.20 0.20], ...
@@ -912,15 +754,13 @@ function fig_mesh(nodes, elems, dof, res_dir)
          'VerticalAlignment','bottom', ...
          'Rotation',90);
 
-    % --- Limits ---
     axis(ax,'equal');
     ax.Box      = 'on';
     ax.LineWidth = 0.7;
     ax.FontSize  = 8;
     ax.TickDir   = 'out';
-    
-    % Ensure limits contain all nodes AND all annotation positions
-    xlim(ax,[x_min-18, x_max+45]); 
+
+    xlim(ax,[x_min-18, x_max+45]);
     ylim(ax,[y_min-25, y_max+30]);
 
     xlabel(ax,'$x$ [mm]','Interpreter','latex','FontSize',9);
@@ -932,20 +772,16 @@ function fig_mesh(nodes, elems, dof, res_dir)
     close(fh);
 end
 
-% =====================================================================
-%  COLORMAP  — blue -> cyan -> green -> yellow -> red  (crack style)
-% =====================================================================
 function c = crack_cmap()
-% Spectral crack colormap matching reference publication images.
-% Undamaged background stays cool blue-grey; crack tip is dark red.
+
     n     = 256;
-    stops = [0.84 0.88 0.95;   % 0.00  light blue-grey (undamaged)
-             0.18 0.42 0.86;   % 0.10  blue
-             0.05 0.72 0.88;   % 0.30  cyan
-             0.18 0.80 0.32;   % 0.50  green
-             0.96 0.90 0.08;   % 0.70  yellow
-             0.98 0.44 0.04;   % 0.85  orange
-             0.82 0.04 0.04];  % 1.00  dark red
+    stops = [0.84 0.88 0.95;
+             0.18 0.42 0.86;
+             0.05 0.72 0.88;
+             0.18 0.80 0.32;
+             0.96 0.90 0.08;
+             0.98 0.44 0.04;
+             0.82 0.04 0.04];
     pos   = [0, 0.10, 0.30, 0.50, 0.70, 0.85, 1.00];
     t     = linspace(0,1,n)';
     c     = zeros(n,3);
@@ -955,17 +791,12 @@ function c = crack_cmap()
     c = min(max(c,0),1);
 end
 
-% Alias kept for any legacy calls
 function c = damage_cmap(), c = crack_cmap(); end
 
-
-% =====================================================================
-%  SHARED HELPERS
-% =====================================================================
 function draw_dim_arrow(ax, x1, y1, x2, y2, col, dir)
-% Double-headed dimension arrow with proper directional triangular markers
+
     plot(ax, [x1 x2], [y1 y2], '-', 'Color',col, 'LineWidth',1.0);
-    
+
     if strcmp(dir, 'horizontal')
         plot(ax, x1, y1, '<', 'Color',col, 'MarkerFaceColor',col, 'MarkerSize',5);
         plot(ax, x2, y2, '>', 'Color',col, 'MarkerFaceColor',col, 'MarkerSize',5);
@@ -975,13 +806,12 @@ function draw_dim_arrow(ax, x1, y1, x2, y2, col, dir)
     end
 end
 
-
 function plot_support(ax, x, y, s, kind)
     patch('Parent',ax, ...
           'XData',[x-s, x+s, x], 'YData',[y-s, y-s, y], ...
           'FaceColor',[0.32 0.32 0.38],'EdgeColor','k','LineWidth',0.7);
     if strcmp(kind,'roller')
-        % small circles under roller
+
         th = linspace(0,2*pi,24);
         r  = s * 0.45;
         for dx = [-s*0.6, s*0.6]
@@ -993,9 +823,8 @@ function plot_support(ax, x, y, s, kind)
     end
 end
 
-
 function save_fig_hq(fh, basepath)
-% Export clean PNG and PDF without cropping the right-side legend/panel.
+
     set(fh,'Color','w','InvertHardcopy','off');
 
     try
@@ -1006,16 +835,13 @@ function save_fig_hq(fh, basepath)
                        'ContentType','vector', ...
                        'BackgroundColor','white');
     catch
-        % Fallback for older MATLAB releases.
+
         set(fh,'PaperPositionMode','auto');
         print(fh, [basepath '.png'], '-dpng', '-r600');
         print(fh, [basepath '.pdf'], '-dpdf', '-painters', '-r600');
     end
 end
 
-% =====================================================================
-%                        SYSTEM HELPERS
-% =====================================================================
 function r = ram_bytes()
     r = 0;
     if isunix

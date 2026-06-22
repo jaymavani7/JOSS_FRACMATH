@@ -1,37 +1,3 @@
-# -*- coding: utf-8 -*-
-#!/usr/bin/env python
-"""
-extract_damage.py
-=================
-Standalone fix when the 3PB run finished but you got NO damaged-geometry
-figure. Opens the ODB directly, tells you the MAX damage actually present
-(so you know whether the crack exists at all), dumps CSVs, and draws the
-MATLAB-style crack plot (fully damaged elements in black on a grey mesh).
-
-Damage variable = SDV2 (omega), exactly as in the run script.
-
-RUN (inside Abaqus -- it needs odbAccess):
-    abaqus python extract_damage.py
-    abaqus python extract_damage.py Gregoire_3PB/Gregoire_3PB.odb
-    abaqus python extract_damage.py path/to.odb  0.99   results_out
-
-Args (all optional):
-    1) odb path        default: auto-find newest *.odb under ./ and ./Gregoire_3PB
-    2) threshold       default: 0.99   (crack = omega >= this)
-    3) output dir      default: <odb_folder>/results
-
-ALWAYS writes (into output dir):
-    damage_diagnostic.txt           <-- READ THIS: max omega, frame list, why blank
-    plotdata/mesh_nodes.csv
-    plotdata/mesh_elements.csv
-    plotdata/omega_peak.csv  omega_postpeak.csv  omega_last.csv
-If matplotlib is importable in Abaqus python, ALSO writes:
-    abaqus_fig_damage_peak.png/.pdf
-    abaqus_fig_damage_postpeak.png/.pdf
-    abaqus_fig_damage_last_step.png/.pdf
-If matplotlib is NOT available, run the companion plotter with normal Python:
-    python plot_damage_from_csv.py <output dir>
-"""
 
 from __future__ import print_function
 import os
@@ -46,23 +12,19 @@ except Exception as e:
     print('Import error: %s' % str(e))
     sys.exit(1)
 
-
-# ------------------------------------------------------------------ helpers
 def norm_name(s):
     return ''.join(ch for ch in str(s).upper() if ch.isalnum())
 
-
 def float_component(data, comp):
-    """SDV2 field -> scalar (comp 0). Bundled SDV vector -> element comp."""
+
     try:
-        return float(data)            # scalar field
+        return float(data)
     except (TypeError, ValueError):
         pass
     try:
-        return float(data[comp])      # vector field, pick component
+        return float(data[comp])
     except Exception:
         return float(data[0])
-
 
 def find_odb(arg):
     if arg and os.path.exists(arg):
@@ -73,16 +35,14 @@ def find_odb(arg):
         print('ERROR: no .odb found. Pass the path explicitly.')
         sys.exit(1)
     cands.sort(key=os.path.getmtime)
-    return os.path.abspath(cands[-1])    # newest
-
+    return os.path.abspath(cands[-1])
 
 def ensure_dir(p):
     if not os.path.isdir(p):
         os.makedirs(p)
 
-
 def get_damage_field(frame):
-    """Return (field, component, key) for omega. Mirrors the run script."""
+
     keys = frame.fieldOutputs.keys()
     for k in ('SDV2', 'SDV_2', 'STATEV2', 'STATEV_2'):
         if k in keys:
@@ -95,9 +55,8 @@ def get_damage_field(frame):
             return frame.fieldOutputs[k], 1, k
     return None, None, None
 
-
 def frame_max_omega(frame):
-    """Max omega in a frame, plus the field key used. (None, None) if absent."""
+
     fld, comp, key = get_damage_field(frame)
     if fld is None:
         return None, None
@@ -112,7 +71,6 @@ def frame_max_omega(frame):
     if mx <= -1.0e98:
         return None, key
     return mx, key
-
 
 def write_omega_csv(frame, path):
     if frame is None:
@@ -138,8 +96,6 @@ def write_omega_csv(frame, path):
     f.close()
     return n, (mx if mx > -1.0e98 else -1.0)
 
-
-# ----------------------------------------------------------------- mesh dump
 def dump_mesh(odb, pd_dir):
     asm = odb.rootAssembly
     inst = list(asm.instances.values())[0]
@@ -162,26 +118,22 @@ def dump_mesh(odb, pd_dir):
                         (int(el.label), int(con[0]), int(con[1]), int(con[2])))
     return inst.name
 
-
-# --------------------------------------------------------- pick peak/postpeak
 def pick_indices(step):
-    """peak/postpeak/last frame indices from RF2 history if available,
-    else fall back to last frame for all three."""
+
     nf = len(step.frames)
     if nf == 0:
         return None, None, None
     last = nf - 1
-    # try to find peak via history RF2 (Load_Nodes)
+
     peak = last
     try:
         best = None
         for ro in step.historyRegions.values():
             for kk, out in ro.historyOutputs.items():
                 if kk.upper().startswith('RF2'):
-                    # cumulative reaction; peak = max |sum| over time
-                    # single node-set region: just track this series
-                    series = out.data  # list of (time, value)
-                    # map time -> frame index by nearest frame time
+
+                    series = out.data
+
                     times = [fr.frameValue for fr in step.frames]
                     vmax, tmax = -1.0e99, None
                     for (t, val) in series:
@@ -189,7 +141,7 @@ def pick_indices(step):
                         if av > vmax:
                             vmax, tmax = av, t
                     if tmax is not None:
-                        # nearest frame
+
                         di = min(range(nf), key=lambda i: abs(times[i] - tmax))
                         best = di
         if best is not None:
@@ -201,8 +153,6 @@ def pick_indices(step):
         postpeak = peak + 1
     return peak, postpeak, last
 
-
-# -------------------------------------------------------------- optional plot
 def try_plot(pd_dir, out_dir, thresh):
     try:
         import numpy as np
@@ -244,7 +194,7 @@ def try_plot(pd_dir, out_dir, thresh):
                 eid, w = int(p[0]), float(p[2])
             except Exception:
                 continue
-            d[eid] = max(d.get(eid, -1.0), w)   # worst IP per element
+            d[eid] = max(d.get(eid, -1.0), w)
         return d
 
     def one_fig(csv_name, label, base):
@@ -292,8 +242,6 @@ def try_plot(pd_dir, out_dir, thresh):
     one_fig('omega_last.csv',     'last step',  os.path.join(out_dir, 'abaqus_fig_damage_last_step'))
     return True
 
-
-# -------------------------------------------------------------------- main
 def main():
     odb_path = find_odb(sys.argv[1] if len(sys.argv) > 1 else None)
     thresh = float(sys.argv[2]) if len(sys.argv) > 2 else 0.99
@@ -312,7 +260,6 @@ def main():
     diag.append('ODB: %s' % odb_path)
     diag.append('Threshold (crack = omega >= this): %.2f' % thresh)
 
-    # step
     stepname = list(odb.steps.keys())[-1]
     step = odb.steps[stepname]
     nf = len(step.frames)
@@ -324,7 +271,6 @@ def main():
         print('\n'.join(diag))
         return
 
-    # what fields exist on the last frame?
     last = step.frames[-1]
     fkeys = list(last.fieldOutputs.keys())
     diag.append('Field outputs on last frame: %s' % ', '.join(fkeys) if fkeys
@@ -337,7 +283,6 @@ def main():
     else:
         diag.append('Damage field used: %s (component %d)' % (key, comp))
 
-    # global max omega over ALL frames (the decisive number)
     gmax, gmax_i = -1.0e99, -1
     for i, fr in enumerate(step.frames):
         mx, _ = frame_max_omega(fr)
@@ -358,7 +303,6 @@ def main():
     else:
         diag.append('MAX omega: could not be determined (no readable SDV values).')
 
-    # dump mesh + omega snapshots
     inst_name = dump_mesh(odb, pd_dir)
     diag.append('Instance: %s' % inst_name)
     peak_i, pp_i, last_i = pick_indices(step)
@@ -379,11 +323,9 @@ def main():
     print('\n'.join(diag))
     print('----------------------\n')
 
-    # figures
     try_plot(pd_dir, out_dir, thresh)
 
     print('\nDONE. Read: %s' % os.path.join(out_dir, 'damage_diagnostic.txt'))
-
 
 if __name__ == '__main__':
     main()

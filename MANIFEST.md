@@ -1,6 +1,6 @@
-﻿# Repository manifest
+# Repository manifest
 
-This file lists the main source-code, input-data, and generated-result locations for the FRACMAT JOSS repository.
+This file lists the main source-code, input-data, and generated-result locations for the FRACMATH JOSS repository.
 
 ## Root files
 
@@ -9,10 +9,29 @@ This file lists the main source-code, input-data, and generated-result locations
 | `README.md` | Main repository overview and quick start |
 | `REPRODUCIBILITY.md` | Step-by-step run guide for each analysis |
 | `CITATION.cff` | Citation metadata for the software archive |
+| `CONTRIBUTING.md` | Issue, support, and contribution guidance |
+| `CHANGELOG.md` | Version and submission-preparation history |
 | `LICENSE` | MIT License |
 | `requirements.txt` | Python plotting dependencies |
 | `.gitattributes` | Git LFS tracking for large Abaqus `.odb` files |
 | `.gitignore` | Local scratch-file ignore rules |
+| `.github/workflows/draft-pdf.yml` | GitHub Actions workflow for compiling the JOSS draft PDF |
+
+## JOSS paper package
+
+| Path | Type | Description |
+| --- | --- | --- |
+| `paper/paper.md` | manuscript | JOSS paper in Markdown format |
+| `paper/paper.bib` | bibliography | BibTeX references cited in the paper |
+| `paper/build_composite_figures.py` | source | Rebuilds the JOSS composite panel figures from source images |
+| `paper/images/*.png` | figure | JOSS figures referenced by `paper.md` |
+
+## Reviewer checks
+
+| Path | Type | Description |
+| --- | --- | --- |
+| `tests/README.md` | documentation | Smoke-check instructions |
+| `tests/run_smoke_checks.m` | source | MATLAB check for key files, paper assets, and sample result tables |
 
 ## 2D three-point bending benchmark
 
@@ -39,11 +58,10 @@ This file lists the main source-code, input-data, and generated-result locations
 | --- | --- | --- |
 | `Noor mohammad/README.md` | documentation | Overview of the Nooru-Mohamed benchmark |
 | `Noor mohammad/Mesh/README.md` | documentation | One-by-one run instructions |
-| `Noor mohammad/Mesh/damage_static_NR_vectorized_LIVE_damage_different_colours.m` | source | Main 3D vectorized MATLAB damage solver |
+| `Noor mohammad/Mesh/damage_static.m` | source | Main 3D vectorized MATLAB damage solver |
 | `Noor mohammad/Mesh/visulizaiton.m` | source | Mesh and boundary-condition visualization |
 | `Noor mohammad/Mesh/Job-1_*.txt` | input | Mesh and node-set files |
 | `Noor mohammad/Mesh/out_NR_vectorized_LIVE_damage_mesh/` | output | Main solver output folder |
-| `Noor mohammad/out_ultra/` | output | Additional stored damage snapshots and curve data |
 
 ## 3D torsion benchmark
 
@@ -51,7 +69,7 @@ This file lists the main source-code, input-data, and generated-result locations
 | --- | --- | --- |
 | `Torsion/README.md` | documentation | Overview of the torsion benchmark |
 | `Torsion/working/README.md` | documentation | One-by-one run instructions |
-| `Torsion/working/run_torsion_stress_strain_static_fast_modvm_multiview_video.m` | source | Main 3D torsion MATLAB solver |
+| `Torsion/working/run_torsion.m` | source | Main 3D torsion MATLAB solver |
 | `Torsion/working/visulize.m` | source | Visualization helper |
 | `Torsion/working/Job-1_*.txt` | input | Mesh and node-set files |
 | `Torsion/working/out_torsion_LIVE_ONLY_OLIVER/` | output | Main torsion output folder |
